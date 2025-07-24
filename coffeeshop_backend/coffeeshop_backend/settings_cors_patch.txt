@@ -1,0 +1,9 @@
+# Instructions for CORS setup
+
+# 1. Add 'corsheaders' to INSTALLED_APPS in settings.py
+# 2. Add 'corsheaders.middleware.CorsMiddleware' to the top of MIDDLEWARE in settings.py
+# 3. Add the following settings to allow your React frontend to access the API:
+
+CORS_ALLOW_ALL_ORIGINS = True  # For development only! Use CORS_ALLOWED_ORIGINS in production
+
+# 4. Save settings.py and restart your Django server
