@@ -3,23 +3,29 @@ import { useUser } from "@/context/UserContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { DataTable } from "@/components/ui/data-table";
+import { columns } from "@/features/orders/components/columns";
 import { OrderForm } from "@/features/orders/components/order-form";
+import { OrderDetailsModal } from "@/features/orders/components/order-details-modal";
+import { OrderFilters } from "@/features/orders/components/order-filters";
+import { isValid, parseISO, isBefore, isAfter, isEqual } from "date-fns";
 
 export default function Orders() {
   const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  
+  // Filter state
+  const [filters, setFilters] = useState({
+    status: null,
+    customer: null,
+    startDate: null,
+    endDate: null
+  });
   const { apiCallWithTokenRefresh } = useUser();
 
   const fetchOrders = useCallback(async () => {
@@ -41,24 +47,88 @@ export default function Orders() {
     // Fetch orders when component mounts
     fetchOrders();
   }, [fetchOrders]);
+  
+  // Apply filters to orders
+  useEffect(() => {
+    if (!orders.length) {
+      setFilteredOrders([]);
+      return;
+    }
+    
+    let result = [...orders];
+    
+    // Filter by status
+    if (filters.status) {
+      result = result.filter(order => order.status === filters.status);
+    }
+    
+    // Filter by customer name
+    if (filters.customer) {
+      const searchTerm = filters.customer.toLowerCase();
+      result = result.filter(order => {
+        const customerName = (order.customer_name || '').toLowerCase();
+        return customerName.includes(searchTerm);
+      });
+    }
+    
+    // Filter by start date
+    if (filters.startDate && isValid(filters.startDate)) {
+      result = result.filter(order => {
+        const orderDate = parseISO(order.ordered_at);
+        return isEqual(orderDate, filters.startDate) || isAfter(orderDate, filters.startDate);
+      });
+    }
+    
+    // Filter by end date
+    if (filters.endDate && isValid(filters.endDate)) {
+      result = result.filter(order => {
+        const orderDate = parseISO(order.ordered_at);
+        return isEqual(orderDate, filters.endDate) || isBefore(orderDate, filters.endDate);
+      });
+    }
+    
+    setFilteredOrders(result);
+  }, [orders, filters]);
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit', 
-      minute: '2-digit'
-    }).format(date);
+  const handleRowClick = (order) => {
+    setSelectedOrder(order);
+    setIsDetailsOpen(true);
+  };
+  
+  // Handle status updates from the modal
+  const handleStatusChange = (orderId, updatedOrder) => {
+    // Update the local orders state
+    setOrders(orders.map(order => {
+      if (order.id === orderId) {
+        // Replace the order with updated data
+        return updatedOrder;
+      }
+      return order;
+    }));
+    
+    // Also update the selectedOrder with complete order data including history
+    setSelectedOrder(updatedOrder);
   };
 
+  // Handle filter changes
+  const handleFilterChange = useCallback(() => {
+    // This is handled by the useEffect above
+    // Just updating state is enough
+  }, []);
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Orders</h1>
         <Button onClick={() => setIsFormOpen(true)}>New Order</Button>
       </div>
+      
+      {/* Order Filters */}
+      <OrderFilters 
+        filters={filters} 
+        setFilters={setFilters} 
+        onFilterChange={handleFilterChange} 
+      />
       
       {loading ? (
         <div className="py-8 text-center">
@@ -86,33 +156,22 @@ export default function Orders() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Order History</CardTitle>
+            <CardTitle>
+              Order History
+              {filteredOrders.length !== orders.length && (
+                <span className="ml-2 text-sm text-muted-foreground font-normal">
+                  {filteredOrders.length} of {orders.length} orders
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Product</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead className="text-right">Total Price</TableHead>
-                  <TableHead className="text-right">Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {orders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">#{order.id}</TableCell>
-                    <TableCell>
-                      {order.product?.name || `Product #${order.product}`}
-                    </TableCell>
-                    <TableCell className="text-right">{order.quantity}</TableCell>
-                    <TableCell className="text-right">₱{parseFloat(order.total_price).toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{formatDate(order.ordered_at)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable 
+              columns={columns} 
+              data={filteredOrders}
+              searchKey="order_id"
+              onRowClick={handleRowClick}
+            />
           </CardContent>
         </Card>
       )}
@@ -122,6 +181,14 @@ export default function Orders() {
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
         onSuccess={fetchOrders}
+      />
+      
+      {/* Order Details Modal */}
+      <OrderDetailsModal
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        order={selectedOrder}
+        onStatusChange={handleStatusChange}
       />
     </div>
   );

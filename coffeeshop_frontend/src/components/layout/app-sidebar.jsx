@@ -69,7 +69,7 @@ export function AppSidebar({ ...props }) {
                 </div>
                 <div className="flex flex-1 items-center justify-between">
                   <div className="text-left text-sm leading-tight">
-                    <span className="truncate font-medium block">Star Luck</span>
+                    <span className="truncate font-medium block">Star Luck Cafe</span>
                     <span className="truncate text-xs block">Management System</span>
                   </div>
                   {state !== "collapsed" && <ModeToggle />}
