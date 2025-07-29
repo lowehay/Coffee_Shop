@@ -6,6 +6,7 @@ import {
   Settings2,
   ShoppingCart,
   Package,
+  FlaskConical,
 } from "lucide-react"
 import { Link } from "react-router-dom";
 
@@ -38,6 +39,7 @@ const data = {
     {
       title: "Management",
       items: [
+        { title: "Ingredients", url: "/ingredients", icon: FlaskConical },
         { title: "Customers", url: "/customers", icon: PieChart },
         { title: "Reports", url: "/reports", icon: Map },
       ],

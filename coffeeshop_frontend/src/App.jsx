@@ -17,6 +17,7 @@ import Orders from "@/features/orders/pages/Orders";
 import Customers from "@/features/customers/pages/Customers";
 import Reports from "@/features/reports/pages/Reports";
 import Settings from "@/features/settings/pages/Settings";
+import { IngredientsPage } from "@/features/ingredients/pages";
 
 function MainLayout() {
   
@@ -38,6 +39,7 @@ function MainLayout() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/products" element={<Products />} />
             <Route path="/orders" element={<Orders />} />
+            <Route path="/ingredients" element={<IngredientsPage />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
