@@ -9,12 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useUser } from "../../context/UserContext";
 
-// Create axios instance with credentials support
-import axios from "axios";
-const api = axios.create({
-  baseURL: 'http://localhost:8000',
-  withCredentials: true // Important for cookies to be sent/received
-});
+import api from "../../services/api";
 
 export function LoginForm({
   className,
@@ -22,13 +17,13 @@ export function LoginForm({
 }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { fetchUserData } = useUser();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+    setLoading(true);
     try {
       // Using api instance with withCredentials: true
       // The backend will set the cookies automatically
@@ -73,8 +68,8 @@ export function LoginForm({
                 </div>
                 <Input id="password" type="password" required value={password} onChange={e => setPassword(e.target.value)} />
               </div>
-              <Button type="submit" className="w-full">
-                Login
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Logging in..." : "Login"}
               </Button>
               <div
                 className="after:border-border relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t">

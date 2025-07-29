@@ -1,17 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 
 const UserContext = createContext();
 
-// Create axios instance with credentials support
-const api = axios.create({
-  baseURL: 'http://localhost:8000',
-  withCredentials: true, // Important for cookies to be sent/received
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
-});
 
 // Add request interceptor for debugging
 api.interceptors.request.use(config => {
