@@ -7,7 +7,7 @@ import coffeeLoginImg from "@/assets/image/coffee_login.jpg";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { useUser } from "../../context/UserContext";
+import { useUser } from "../../hooks/useUser";
 
 import api from "../../services/api";
 

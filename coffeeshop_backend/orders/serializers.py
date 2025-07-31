@@ -26,9 +26,13 @@ class OrderItemSerializer(serializers.ModelSerializer):
         
         if quantity <= 0:
             raise serializers.ValidationError({"quantity": "Quantity must be greater than zero."})
-            
-        if product.stock < quantity:
-            raise serializers.ValidationError({"quantity": f"Not enough stock. Only {product.stock} available."})
+        
+        # Use available_stock for validation (handles both regular and ingredient-based products)
+        available = product.get_available_stock()
+        if available < quantity:
+            raise serializers.ValidationError({
+                "quantity": f"Not enough available. Only {available} {product.name} can be made with current ingredients."
+            })
         
         return data
 
@@ -107,15 +111,18 @@ class OrderSerializer(serializers.ModelSerializer):
             except Product.DoesNotExist:
                 raise serializers.ValidationError({"product": f"Product with ID {product_id} not found."})
             
-            # Check stock
-            if product.stock < quantity:
+            # Check available stock (handles both regular and ingredient-based products)
+            available = product.get_available_stock()
+            if available < quantity:
                 raise serializers.ValidationError(
-                    {"quantity": f"Not enough stock for {product.name}. Only {product.stock} available."}
+                    {"quantity": f"Not enough available for {product.name}. Only {available} can be made with current ingredients."}
                 )
             
-            # Reduce stock
-            product.stock -= quantity
-            product.save()
+            # Reduce stock only for non-deductable products
+            # (deductable products will have their ingredients deducted when order is completed)
+            if not product.deductable:
+                product.stock -= quantity
+                product.save()
             
             # Create order item
             OrderItem.objects.create(

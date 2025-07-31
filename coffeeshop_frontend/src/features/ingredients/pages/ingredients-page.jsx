@@ -141,7 +141,7 @@ export function IngredientsPage() {
         </Button>
       </div>
 
-      <div className="flex w-full max-w-sm items-center space-x-2 mb-6">
+      <div className="flex w-full max-w-sm items-center space-x-2 mb-2">
         <Input
           type="text"
           placeholder={`Search ${activeTab}...`}

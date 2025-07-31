@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { useUser } from '@/context/UserContext';
+import { useUser } from '@/hooks/useUser';
 
 /**
  * ProtectedRoute component that restricts access to authenticated users only

@@ -1,5 +1,5 @@
 import React from "react";
-import { useUser } from "@/context/UserContext";
+import { useUser } from "@/hooks/useUser";
 
 // Import dashboard components
 import { SummaryCards } from "../components/summary-cards";
