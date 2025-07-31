@@ -39,7 +39,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import { useUser } from "@/context/UserContext";
+import { useUser } from "../../hooks/useUser";
 
 export function NavUser({
   user

@@ -179,6 +179,8 @@ export const columns = [
     cell: ({ row }) => {
       return <div>{formatDate(row.getValue("ordered_at"))}</div>
     },
+    // Set this column as the initial sort in descending order
+    sortingFn: "datetime",
   },
   {
     id: "actions",

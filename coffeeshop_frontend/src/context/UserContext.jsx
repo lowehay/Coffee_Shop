@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import api from "../services/api";
 
-const UserContext = createContext();
+// Import UserContext from separate file for Fast Refresh compatibility
+import { UserContext } from "./UserContext.context";
 
 
 // Add request interceptor for debugging
@@ -25,6 +26,11 @@ export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const refreshTimerRef = useRef(null);
+  
+  // Token refresh interval (4 minutes = 240000ms)
+  // Set this to refresh before your token expires (typically 5 minutes)
+  const REFRESH_INTERVAL = 240000;
 
   const fetchUserData = async () => {
     // No need to check for tokens in localStorage - cookies are sent automatically
@@ -65,6 +71,25 @@ export function UserProvider({ children }) {
     }
   };
 
+  // Define logout first to avoid circular reference
+  const logout = useCallback(async () => {
+    try {
+      // Call logout endpoint to clear cookies on server
+      await api.post("/api/logout/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+    
+    // Clear token refresh timer
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+    
+    // Clear user state regardless of API success
+    setUser(null);
+  }, [refreshTimerRef]);
+
   // Create a reusable function for API calls that handles token refresh
   const apiCallWithTokenRefresh = async (url, method = "get", data = null) => {
     try {
@@ -104,22 +129,55 @@ export function UserProvider({ children }) {
     }
   };
 
+  // Setup automatic token refresh using useCallback to avoid dependency issues
+  const setupTokenRefresh = useCallback(() => {
+    // Clear any existing timer first
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+    }
+    
+    // Set up new timer for regular token refresh
+    refreshTimerRef.current = setInterval(async () => {
+      try {
+        // Only try to refresh if we have a user (we're logged in)
+        if (user) {
+          console.log('Performing automatic token refresh');
+          await api.post('/api/token/refresh/');
+          console.log('Token refreshed successfully');
+        }
+      } catch (error) {
+        console.error('Automatic token refresh failed:', error);
+        // If refresh fails, logout the user
+        if (error.response && error.response.status === 401) {
+          console.log('Token refresh failed with 401, logging out');
+          logout();
+        }
+      }
+    }, REFRESH_INTERVAL);
+  }, [user, logout, REFRESH_INTERVAL]);
+  
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+      }
+    };
+  }, []);
+  
   // Load user data on initial render
   useEffect(() => {
     fetchUserData();
   }, []);
-
-  const logout = async () => {
-    try {
-      // Call logout endpoint to clear cookies on server
-      await api.post("/api/logout/");
-    } catch (error) {
-      console.error("Logout error:", error);
+  
+  // Setup token refresh whenever user changes
+  useEffect(() => {
+    if (user) {
+      setupTokenRefresh();
+    } else if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
     }
-    
-    // Clear user state regardless of API success
-    setUser(null);
-  };
+  }, [user, setupTokenRefresh]);
 
   return (
     <UserContext.Provider value={{ 
@@ -135,6 +193,4 @@ export function UserProvider({ children }) {
   );
 }
 
-export function useUser() {
-  return useContext(UserContext);
-}
+// useUser hook moved to a separate file src/hooks/useUser.jsx

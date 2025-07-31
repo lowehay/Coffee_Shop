@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useUser } from "@/context/UserContext";
+import { useUser } from "@/hooks/useUser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -32,7 +32,11 @@ export default function Orders() {
     try {
       setLoading(true);
       const response = await apiCallWithTokenRefresh('/api/orders/orders/');
-      setOrders(response.data);
+      // Sort orders by ordered_at date in descending order (newest first)
+      const sortedOrders = response.data.sort((a, b) => {
+        return new Date(b.ordered_at) - new Date(a.ordered_at);
+      });
+      setOrders(sortedOrders);
       setError(null);
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -171,6 +175,10 @@ export default function Orders() {
               data={filteredOrders}
               searchKey="order_id"
               onRowClick={handleRowClick}
+              initialSort={{
+                id: "ordered_at",
+                desc: true
+              }}
             />
           </CardContent>
         </Card>
