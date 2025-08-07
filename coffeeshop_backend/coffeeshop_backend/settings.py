@@ -61,10 +61,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # or whatever port your React dev server uses
+    "https://my-portfolio-louie-six.vercel.app/"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
+    "https://my-portfolio-louie-six.vercel.app/"
 ]
 
 MIDDLEWARE = [
