@@ -60,13 +60,13 @@ CORS_ALLOW_ALL_ORIGINS = True  # For development only!
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # or whatever port your React dev server uses
-    "https://coffee-shop-self-sigma.vercel.app/"
+    "http://localhost:5173",
+    "https://coffee-shop-self-sigma.vercel.app",  # ✅ No trailing slash
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
-    "https://coffee-shop-self-sigma.vercel.app/"
+    "https://coffee-shop-self-sigma.vercel.app",  # ✅ No trailing slash
 ]
 
 MIDDLEWARE = [
