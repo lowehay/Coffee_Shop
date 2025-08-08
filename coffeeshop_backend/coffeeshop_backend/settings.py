@@ -126,7 +126,9 @@ WSGI_APPLICATION = 'coffeeshop_backend.wsgi.application'
 # Add this to your settings.py
 DATABASES = {
     'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL')
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
     )
 }
 
