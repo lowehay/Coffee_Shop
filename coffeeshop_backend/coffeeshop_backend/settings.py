@@ -9,7 +9,8 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
+import dj_database_url
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -25,8 +26,7 @@ SECRET_KEY = 'django-insecure-uitk1nyqh(s5#d&21y_%ezo$tj$5et*eo4i2(g3e994^m==2$x
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ['coffee-shop-xjjs.onrender.com', 'localhost', '127.0.0.1']
 
 # Application definition
 
@@ -60,11 +60,13 @@ CORS_ALLOW_ALL_ORIGINS = True  # For development only!
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # or whatever port your React dev server uses
+    "http://localhost:5173",
+    "https://coffee-shop-self-sigma.vercel.app",  # No trailing slash
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
+    "https://coffee-shop-self-sigma.vercel.app",  # No trailing slash
 ]
 
 MIDDLEWARE = [
@@ -121,11 +123,13 @@ WSGI_APPLICATION = 'coffeeshop_backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Add this to your settings.py
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # Password validation
