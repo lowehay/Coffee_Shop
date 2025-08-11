@@ -105,13 +105,9 @@ export function LoginForm({
               </div>
               <div className="text-center text-sm">
                 Don&apos;t have an account?{" "}
-                <button
-                  type="button"
-                  className="underline underline-offset-4 hover:text-primary"
-                  onClick={() => navigate("/register")}
-                >
+                <a href="#" className="underline underline-offset-4">
                   Sign up
-                </button>
+                </a>
               </div>
             </div>
           </form>

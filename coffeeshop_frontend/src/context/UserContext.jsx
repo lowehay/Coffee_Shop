@@ -33,26 +33,26 @@ export function UserProvider({ children }) {
   const REFRESH_INTERVAL = 240000;
 
   const fetchUserData = async () => {
+    // Prevent multiple concurrent requests
+    if (loading) return;
+    
     setLoading(true);
     setError(null);
     
     try {
-      console.log("Fetching user data from /me/...");
       const response = await api.get("/me/");
-      console.log("User data received:", response.data);
       setUser({ ...response.data, avatar: "/avatars/admin.jpg" });
       setError(null);
     } catch (error) {
       console.log("Error fetching user data:", error);
       
-      // For 401 errors (unauthorized), just set user to null without error message
-      // This is expected behavior when not logged in
+      // Handle 401 (unauthorized) - this is expected when no tokens are present
       if (error.response && error.response.status === 401) {
-        console.log("401 error - user not authenticated");
+        console.log("No valid tokens - user needs to login");
         setUser(null);
         setError(null); // Don't show error for unauthenticated state
       } else {
-        console.log("Other error:", error);
+        console.log("Network or other error:", error);
         setUser(null);
         setError("Could not fetch user data");
       }
@@ -137,15 +137,11 @@ export function UserProvider({ children }) {
         }
       } catch (error) {
         console.error('Automatic token refresh failed:', error);
-        // If refresh fails, logout the user
-        if (error.response && error.response.status === 401) {
-          console.log('Token refresh failed with 401, logging out');
-          logout();
-        }
+        // If refresh fails, don't logout - let the next API call handle it
       }
     }, REFRESH_INTERVAL);
-  }, [user, logout, REFRESH_INTERVAL]);
-  
+  }, [user, REFRESH_INTERVAL]);
+
   // Clean up interval on unmount
   useEffect(() => {
     return () => {
@@ -155,23 +151,9 @@ export function UserProvider({ children }) {
     };
   }, []);
   
-  // Load user data on initial render - only check tokens for initial load
+  // Load user data on initial render
   useEffect(() => {
-    const checkInitialAuth = async () => {
-      console.log("Checking initial auth state...");
-      
-      // Always try to fetch user data first, regardless of cookie presence
-      // The API will handle authentication via cookies
-      try {
-        await fetchUserData();
-      } catch (error) {
-        console.log("Initial auth check failed:", error);
-        // If fetch fails, user stays null and loading becomes false
-        setLoading(false);
-      }
-    };
-    
-    checkInitialAuth();
+    fetchUserData();
   }, []);
   
   // Setup token refresh whenever user changes
