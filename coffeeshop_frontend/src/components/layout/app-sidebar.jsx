@@ -6,11 +6,12 @@ import {
   Settings2,
   ShoppingCart,
   Package,
+  Boxes,
+  ShoppingBag,
 } from "lucide-react"
 import { Link } from "react-router-dom";
 
 import { NavUser } from "@/components/user/nav-user"
-import { ModeToggle } from "@/components/theme/mode-toggle"
 import {
   Sidebar,
   SidebarContent,
@@ -33,11 +34,13 @@ const data = {
         { title: "Dashboard", url: "/dashboard", icon: Coffee },
         { title: "Products", url: "/products", icon: Package },
         { title: "Orders", url: "/orders", icon: ShoppingCart },
+        { title: "Cart", url: "/cart", icon: ShoppingBag },
       ],
     },
     {
       title: "Management",
       items: [
+        { title: "Inventory", url: "/ingredients", icon: Boxes },
         { title: "Customers", url: "/customers", icon: PieChart },
         { title: "Reports", url: "/reports", icon: Map },
       ],
@@ -51,12 +54,20 @@ const data = {
   ],
 };
 
+import { useUser } from "@/hooks/useUser";
 import { useSidebar } from "@/components/ui/sidebar";
-import { useUser } from "@/context/UserContext";
 
 export function AppSidebar({ ...props }) {
-  const { state } = useSidebar();
   const { user } = useUser();
+  const { collapse } = useSidebar();
+  
+  // Handler to close sidebar on mobile after navigation
+  const handleNavigation = () => {
+    // Check if we're on mobile by window width
+    if (window.innerWidth < 768) {
+      collapse();
+    }
+  };
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -72,7 +83,6 @@ export function AppSidebar({ ...props }) {
                     <span className="truncate font-medium block">Star Luck Cafe</span>
                     <span className="truncate text-xs block">Management System</span>
                   </div>
-                  {state !== "collapsed" && <ModeToggle />}
                 </div>
               </a>
             </SidebarMenuButton>
@@ -89,7 +99,7 @@ export function AppSidebar({ ...props }) {
                 {section.items.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={item.isActive}>
-                      <Link to={item.url}>
+                      <Link to={item.url} onClick={handleNavigation}>
                         {item.icon && <item.icon className="mr-2 w-4 h-4" />}
                         {item.title}
                       </Link>

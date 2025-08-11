@@ -1,17 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import axios from "axios";
+import React, { useEffect, useState, useRef, useCallback } from "react";
+import api from "../services/api";
 
-const UserContext = createContext();
+// Import UserContext from separate file for Fast Refresh compatibility
+import { UserContext } from "./UserContext.context";
 
-// Create axios instance with credentials support
-const api = axios.create({
-  baseURL: 'http://localhost:8000',
-  withCredentials: true, // Important for cookies to be sent/received
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
-});
 
 // Add request interceptor for debugging
 api.interceptors.request.use(config => {
@@ -34,38 +26,33 @@ export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const refreshTimerRef = useRef(null);
+  
+  // Token refresh interval (4 minutes = 240000ms)
+  // Set this to refresh before your token expires (typically 5 minutes)
+  const REFRESH_INTERVAL = 240000;
 
   const fetchUserData = async () => {
-    // No need to check for tokens in localStorage - cookies are sent automatically
     setLoading(true);
+    setError(null);
     
     try {
-      // Cookies are sent automatically with withCredentials
+      console.log("Fetching user data from /me/...");
       const response = await api.get("/me/");
+      console.log("User data received:", response.data);
       setUser({ ...response.data, avatar: "/avatars/admin.jpg" });
       setError(null);
     } catch (error) {
       console.log("Error fetching user data:", error);
       
-      // If token expired (401 error), try to refresh
+      // For 401 errors (unauthorized), just set user to null without error message
+      // This is expected behavior when not logged in
       if (error.response && error.response.status === 401) {
-        try {
-          // Attempt to refresh token - cookies are sent automatically
-          await api.post("/api/token/refresh/");
-          
-          // If refresh successful, retry original request
-          const retryResponse = await api.get("/me/");
-          setUser({ ...retryResponse.data, avatar: "/avatars/admin.jpg" });
-          setError(null);
-        } catch (refreshError) {
-          // Refresh token is invalid or expired
-          console.log("Error refreshing token:", refreshError);
-          setUser(null);
-          setError("Your session has expired. Please login again.");
-          // No need to manually remove cookies - they will be cleared by logout API
-        }
+        console.log("401 error - user not authenticated");
+        setUser(null);
+        setError(null); // Don't show error for unauthenticated state
       } else {
-        // Other error
+        console.log("Other error:", error);
         setUser(null);
         setError("Could not fetch user data");
       }
@@ -73,6 +60,25 @@ export function UserProvider({ children }) {
       setLoading(false);
     }
   };
+
+  // Define logout first to avoid circular reference
+  const logout = useCallback(async () => {
+    try {
+      // Call logout endpoint to clear cookies on server
+      await api.post("/api/logout/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+    
+    // Clear token refresh timer
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+    
+    // Clear user state regardless of API success
+    setUser(null);
+  }, [refreshTimerRef]);
 
   // Create a reusable function for API calls that handles token refresh
   const apiCallWithTokenRefresh = async (url, method = "get", data = null) => {
@@ -113,22 +119,69 @@ export function UserProvider({ children }) {
     }
   };
 
-  // Load user data on initial render
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-
-  const logout = async () => {
-    try {
-      // Call logout endpoint to clear cookies on server
-      await api.post("/api/logout/");
-    } catch (error) {
-      console.error("Logout error:", error);
+  // Setup automatic token refresh using useCallback to avoid dependency issues
+  const setupTokenRefresh = useCallback(() => {
+    // Clear any existing timer first
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
     }
     
-    // Clear user state regardless of API success
-    setUser(null);
-  };
+    // Set up new timer for regular token refresh
+    refreshTimerRef.current = setInterval(async () => {
+      try {
+        // Only try to refresh if we have a user (we're logged in)
+        if (user) {
+          console.log('Performing automatic token refresh');
+          await api.post('/api/token/refresh/');
+          console.log('Token refreshed successfully');
+        }
+      } catch (error) {
+        console.error('Automatic token refresh failed:', error);
+        // If refresh fails, logout the user
+        if (error.response && error.response.status === 401) {
+          console.log('Token refresh failed with 401, logging out');
+          logout();
+        }
+      }
+    }, REFRESH_INTERVAL);
+  }, [user, logout, REFRESH_INTERVAL]);
+  
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current);
+      }
+    };
+  }, []);
+  
+  // Load user data on initial render - only check tokens for initial load
+  useEffect(() => {
+    const checkInitialAuth = async () => {
+      console.log("Checking initial auth state...");
+      
+      // Always try to fetch user data first, regardless of cookie presence
+      // The API will handle authentication via cookies
+      try {
+        await fetchUserData();
+      } catch (error) {
+        console.log("Initial auth check failed:", error);
+        // If fetch fails, user stays null and loading becomes false
+        setLoading(false);
+      }
+    };
+    
+    checkInitialAuth();
+  }, []);
+  
+  // Setup token refresh whenever user changes
+  useEffect(() => {
+    if (user) {
+      setupTokenRefresh();
+    } else if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current);
+    }
+  }, [user, setupTokenRefresh]);
 
   return (
     <UserContext.Provider value={{ 
@@ -144,6 +197,4 @@ export function UserProvider({ children }) {
   );
 }
 
-export function useUser() {
-  return useContext(UserContext);
-}
+// useUser hook moved to a separate file src/hooks/useUser.jsx
