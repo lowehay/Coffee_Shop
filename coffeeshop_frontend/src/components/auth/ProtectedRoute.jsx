@@ -11,11 +11,21 @@ export function ProtectedRoute({ children }) {
   const { user, loading } = useUser();
   const location = useLocation();
 
-  // If user is not authenticated AND not currently loading, redirect to login
-  if (!loading && !user) {
+  // Show nothing while loading to prevent flash of login page
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+    </div>;
+  }
+
+  // Only redirect to login after loading is complete and no user
+  if (!user) {
+    // Prevent redirect loop when already on login page
+    if (location.pathname === "/") {
+      return <Navigate to="/" replace />;
+    }
     return <Navigate to="/" state={{ from: location.pathname }} replace />;
   }
 
-  // Pass through to child components to handle their own loading/auth states
   return children;
 }
