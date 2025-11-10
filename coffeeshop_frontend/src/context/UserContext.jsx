@@ -34,9 +34,11 @@ export function UserProvider({ children }) {
 
   const fetchUserData = async () => {
     setLoading(true);
+    setError(null);
     
     try {
       const response = await api.get("/me/");
+      console.log("User data received:", response.data);
       setUser({ ...response.data, avatar: "/avatars/admin.jpg" });
       setError(null);
       return true; // Successfully authenticated
@@ -155,7 +157,21 @@ export function UserProvider({ children }) {
   
   // Load user data on initial render - only once
   useEffect(() => {
-    fetchUserData();
+    const checkInitialAuth = async () => {
+      console.log("Checking initial auth state...");
+      
+      // Always try to fetch user data first, regardless of cookie presence
+      // The API will handle authentication via cookies
+      try {
+        await fetchUserData();
+      } catch (error) {
+        console.log("Initial auth check failed:", error);
+        // If fetch fails, user stays null and loading becomes false
+        setLoading(false);
+      }
+    };
+    
+    checkInitialAuth();
   }, []);
   
   // Setup token refresh only when user is authenticated
