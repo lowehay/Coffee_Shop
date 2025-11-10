@@ -1,23 +1,26 @@
 services:
   - type: web
-    name: coffee-shop-backend
-    env: python
-    buildCommand: "pip install -r requirements.txt"
+    name: coffeeshop-backend
+    runtime: python
+    buildCommand: "./build.sh"
     startCommand: "gunicorn coffeeshop_backend.wsgi:application"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
-      - key: DATABASE_URL
-        fromDatabase:
-          name: coffee-shop-db
-          property: connectionString
       - key: SECRET_KEY
         generateValue: true
       - key: DEBUG
-        value: "False"
+        value: False
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: coffeeshop-db
+          property: connectionString
+      - key: FRONTEND_URL
+        sync: false
 
 databases:
-  - name: coffee-shop-db
-    databaseName: coffee_shop
-    user: coffee_shop_user
-    plan: starter
+  - name: coffeeshop-db
+    databaseName: coffeeshop
+    user: coffeeshop
