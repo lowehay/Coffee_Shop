@@ -9,7 +9,8 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
+import dj_database_url
 from pathlib import Path
 import os
 from dotenv import load_dotenv
@@ -84,6 +85,7 @@ if DEBUG:
 CSRF_TRUSTED_ORIGINS = [
     FRONTEND_URL,
     "http://localhost:5173",
+    "https://coffee-shop-self-sigma.vercel.app",  # No trailing slash
 ]
 
 MIDDLEWARE = [
