@@ -315,19 +315,15 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
             formDataObj.append('ingredients', JSON.stringify(ingredientsData));
           }
           
-          // Use axios directly for multipart form data
-          const axiosConfig = {
-            url: `http://localhost:8000${endpoint}`,
+          // Use api instance for multipart form data
+          const response = await api({
+            url: endpoint,
             method: method,
             data: formDataObj,
-            withCredentials: true,
             headers: {
               'Content-Type': 'multipart/form-data',
             }
-          };
-      
-      // First save the product
-      const response = await axios(axiosConfig);
+          });
       const savedProduct = response.data;
       
       // If product is deductable, update the ingredients
