@@ -33,39 +33,27 @@ export function UserProvider({ children }) {
   const REFRESH_INTERVAL = 240000;
 
   const fetchUserData = async () => {
-    // No need to check for tokens in localStorage - cookies are sent automatically
     setLoading(true);
     
     try {
-      // Cookies are sent automatically with withCredentials
       const response = await api.get("/me/");
       setUser({ ...response.data, avatar: "/avatars/admin.jpg" });
       setError(null);
+      return true; // Successfully authenticated
     } catch (error) {
-      console.log("Error fetching user data:", error);
+      console.log("Authentication check failed:", error);
       
-      // If token expired (401 error), try to refresh
-      if (error.response && error.response.status === 401) {
-        try {
-          // Attempt to refresh token - cookies are sent automatically
-          await api.post("/api/token/refresh/");
-          
-          // If refresh successful, retry original request
-          const retryResponse = await api.get("/me/");
-          setUser({ ...retryResponse.data, avatar: "/avatars/admin.jpg" });
-          setError(null);
-        } catch (refreshError) {
-          // Refresh token is invalid or expired
-          console.log("Error refreshing token:", refreshError);
-          setUser(null);
-          setError("Your session has expired. Please login again.");
-          // No need to manually remove cookies - they will be cleared by logout API
-        }
-      } else {
-        // Other error
+      if (error.response?.status === 401) {
+        // Token expired or invalid - don't retry, just clear user
+        console.log("User not authenticated or session expired");
         setUser(null);
-        setError("Could not fetch user data");
+        setError(null); // Don't show error for unauthenticated users
+      } else {
+        // Network or other error
+        setUser(null);
+        setError("Could not connect to server");
       }
+      return false; // Not authenticated
     } finally {
       setLoading(false);
     }
@@ -165,17 +153,18 @@ export function UserProvider({ children }) {
     };
   }, []);
   
-  // Load user data on initial render
+  // Load user data on initial render - only once
   useEffect(() => {
     fetchUserData();
   }, []);
   
-  // Setup token refresh whenever user changes
+  // Setup token refresh only when user is authenticated
   useEffect(() => {
     if (user) {
       setupTokenRefresh();
     } else if (refreshTimerRef.current) {
       clearInterval(refreshTimerRef.current);
+      refreshTimerRef.current = null;
     }
   }, [user, setupTokenRefresh]);
 
