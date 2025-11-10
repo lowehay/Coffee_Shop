@@ -7,8 +7,9 @@ import axios from 'axios';
  * - Can be extended with interceptors for token refresh, error handling, etc.
  */
 
-// In your API service files
+// API URL from environment variable
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+console.log('API URL:', API_URL); // Debug log to verify environment variable
 
 const api = axios.create({
   baseURL: API_URL,
