@@ -29,14 +29,19 @@ class UserInfoView(APIView):
 
 class CookieTokenObtainPairView(TokenObtainPairView):
     def finalize_response(self, request, response, *args, **kwargs):
+        from django.conf import settings
+        
+        # Determine cookie settings based on DEBUG mode
+        is_production = not settings.DEBUG
+        
         if response.data.get('access'):
             response.set_cookie(
                 'access_token',
                 response.data['access'],
                 max_age=5*60,  # 5 minutes
                 httponly=True,
-                samesite='Lax',
-                secure=False  # Set to True in production with HTTPS
+                samesite='None' if is_production else 'Lax',
+                secure=is_production  # True in production with HTTPS
             )
             del response.data['access']
             
@@ -46,8 +51,8 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 response.data['refresh'],
                 max_age=14*24*60*60,  # 14 days
                 httponly=True,
-                samesite='Lax',
-                secure=False  # Set to True in production with HTTPS
+                samesite='None' if is_production else 'Lax',
+                secure=is_production  # True in production with HTTPS
             )
             del response.data['refresh']
             
@@ -93,26 +98,32 @@ class CookieTokenRefreshView(TokenRefreshView):
         response = Response({"detail": "Token refreshed successfully"})
         
         # Set new access token cookie
+        from django.conf import settings
+        is_production = not settings.DEBUG
+        
         response.set_cookie(
             'access_token',
             validated_data['access'],
             max_age=5*60,  # 5 minutes
             httponly=True,
-            samesite='Lax',
-            secure=False  # Set to True in production with HTTPS
+            samesite='None' if is_production else 'Lax',
+            secure=is_production
         )
         
         return response
         
     def finalize_response(self, request, response, *args, **kwargs):
+        from django.conf import settings
+        is_production = not settings.DEBUG
+        
         if response.data.get('access'):
             response.set_cookie(
                 'access_token',
                 response.data['access'],
                 max_age=5*60,  # 5 minutes
                 httponly=True,
-                samesite='Lax',
-                secure=False  # Set to True in production with HTTPS
+                samesite='None' if is_production else 'Lax',
+                secure=is_production
             )
             del response.data['access']
             
