@@ -37,25 +37,25 @@ export function UserProvider({ children }) {
     setError(null);
     
     try {
-      console.log("Fetching user data from /me/...");
       const response = await api.get("/me/");
       console.log("User data received:", response.data);
       setUser({ ...response.data, avatar: "/avatars/admin.jpg" });
       setError(null);
+      return true; // Successfully authenticated
     } catch (error) {
-      console.log("Error fetching user data:", error);
+      console.log("Authentication check failed:", error);
       
-      // For 401 errors (unauthorized), just set user to null without error message
-      // This is expected behavior when not logged in
-      if (error.response && error.response.status === 401) {
-        console.log("401 error - user not authenticated");
+      if (error.response?.status === 401) {
+        // Token expired or invalid - don't retry, just clear user
+        console.log("User not authenticated or session expired");
         setUser(null);
-        setError(null); // Don't show error for unauthenticated state
+        setError(null); // Don't show error for unauthenticated users
       } else {
-        console.log("Other error:", error);
+        // Network or other error
         setUser(null);
-        setError("Could not fetch user data");
+        setError("Could not connect to server");
       }
+      return false; // Not authenticated
     } finally {
       setLoading(false);
     }
@@ -155,7 +155,7 @@ export function UserProvider({ children }) {
     };
   }, []);
   
-  // Load user data on initial render - only check tokens for initial load
+  // Load user data on initial render - only once
   useEffect(() => {
     const checkInitialAuth = async () => {
       console.log("Checking initial auth state...");
@@ -174,12 +174,13 @@ export function UserProvider({ children }) {
     checkInitialAuth();
   }, []);
   
-  // Setup token refresh whenever user changes
+  // Setup token refresh only when user is authenticated
   useEffect(() => {
     if (user) {
       setupTokenRefresh();
     } else if (refreshTimerRef.current) {
       clearInterval(refreshTimerRef.current);
+      refreshTimerRef.current = null;
     }
   }, [user, setupTokenRefresh]);
 

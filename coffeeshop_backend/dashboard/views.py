@@ -105,7 +105,12 @@ class DashboardStatsView(APIView):
             
             # Low stock count
             # Consider products with less than 10 items as low stock
-            low_stock_count = Product.objects.filter(stock__lt=10).count()
+            # Need to check available_stock for deductable products
+            low_stock_count = 0
+            for product in Product.objects.all():
+                available = product.get_available_stock() if product.deductable else product.stock
+                if available < 10:
+                    low_stock_count += 1
             
             # Last month low stock count (we'll use a dummy trend here since we don't track historical stock)
             # In a real application, you would track inventory history
@@ -470,10 +475,12 @@ class PopularProductsView(APIView):
             try:
                 product = Product.objects.get(pk=stat['product'])
                 
-                # Determine stock status
-                if product.stock <= 0:
+                # Determine stock status using available_stock for deductable products
+                available_stock = product.get_available_stock() if product.deductable else product.stock
+                
+                if available_stock <= 0:
                     status = "Out of Stock"
-                elif product.stock < 10:
+                elif available_stock < 10:
                     status = "Low Stock"
                 else:
                     status = "In Stock"
@@ -491,7 +498,7 @@ class PopularProductsView(APIView):
                     'image': image_url,
                     'category': 'Coffee',  # Placeholder - would come from a category field in the Product model
                     'status': status,
-                    'stock': product.stock
+                    'stock': available_stock
                 })
             except Product.DoesNotExist:
                 continue
@@ -515,14 +522,17 @@ class InventoryStatusView(APIView):
         
         inventory_data = []
         for product in products:
+            # Use available_stock for deductable products
+            available_stock = product.get_available_stock() if product.deductable else product.stock
+            
             # Determine stock status based on levels
             # Using percentage of theoretical maximum stock (100 units as default)
             max_stock = 100  # Default maximum stock level for visualization
             
             # Calculate status
-            if product.stock <= 0:
+            if available_stock <= 0:
                 status = "Critical"
-            elif product.stock < 10:
+            elif available_stock < 10:
                 status = "Low"
             else:
                 status = "Good"
@@ -533,7 +543,7 @@ class InventoryStatusView(APIView):
             inventory_data.append({
                 'id': product.id,
                 'name': product.name,
-                'stockLevel': product.stock,
+                'stockLevel': available_stock,
                 'totalCapacity': max_stock,
                 'unit': 'pcs',  # Default unit
                 'status': status,

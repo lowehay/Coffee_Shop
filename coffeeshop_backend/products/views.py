@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from .models import Product, ProductIngredient
 from ingredient_inventory.models import Ingredient
@@ -11,6 +12,7 @@ from decimal import Decimal
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticated]
     
     def get_serializer_class(self):
         if self.action in ['retrieve', 'create', 'update', 'partial_update']:
@@ -71,7 +73,7 @@ class ProductIngredientView(APIView):
                 quantity = item.get('quantity')
                 
                 if not ingredient_id or not quantity:
-                    errors.append({"error": "Missing ingredient_id or quantity", "item": item})
+                    errors.append({"error": "Missing ingredient_id, quantity, or required_unit", "item": item})
                     continue
                 
                 # Convert quantity to Decimal
@@ -88,11 +90,15 @@ class ProductIngredientView(APIView):
                     errors.append({"error": f"Ingredient with ID {ingredient_id} not found", "item": item})
                     continue
                 
+                # Extract required_unit
+                required_unit = item.get('required_unit', ingredient.unit)
+                
                 # Create the product-ingredient relation
                 product_ingredient = ProductIngredient.objects.create(
                     product=product,
                     ingredient=ingredient,
-                    quantity=quantity
+                    quantity=quantity,
+                    required_unit=required_unit
                 )
                 created_items.append(ProductIngredientSerializer(product_ingredient).data)
             

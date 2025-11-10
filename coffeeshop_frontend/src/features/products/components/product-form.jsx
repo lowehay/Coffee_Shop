@@ -10,10 +10,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { PlusCircle, X } from "lucide-react";
+import { PlusCircle, X, ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import axios from "axios";
 
@@ -76,19 +83,12 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
             }));
           }
           
-          // Set deductable from product data
-          if (response.data.deductable !== undefined) {
-            setFormData(prevData => ({
-              ...prevData,
-              deductable: response.data.deductable
-            }));
-          }
-          
-          // If product has ingredients, load them
+          // If product has ingredients, load them with required_unit
           if (response.data.product_ingredients && response.data.product_ingredients.length > 0) {
             const formattedIngredients = response.data.product_ingredients.map(item => ({
               ingredient: item.ingredient.toString(),
-              quantity: item.quantity
+              quantity: item.quantity.toString(),
+              required_unit: item.required_unit || ''
             }));
             setSelectedIngredients(formattedIngredients);
           }
@@ -194,7 +194,7 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
   const handleAddIngredient = () => {
     setSelectedIngredients([
       ...selectedIngredients,
-      { ingredient: '', quantity: '' }
+      { ingredient: '', quantity: '', required_unit: '' }
     ]);
   };
   
@@ -209,6 +209,15 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
   const handleIngredientChange = (index, field, value) => {
     const newIngredients = [...selectedIngredients];
     newIngredients[index][field] = value;
+    
+    // Auto-set unit when ingredient is selected
+    if (field === 'ingredient' && value) {
+      const selectedIng = ingredients.find(ing => ing.id == value);
+      if (selectedIng && !newIngredients[index].required_unit) {
+        newIngredients[index].required_unit = selectedIng.unit;
+      }
+    }
+    
     setSelectedIngredients(newIngredients);
   };
 
@@ -295,22 +304,31 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
       formDataObj.append('stock', formData.stock);
       formDataObj.append('description', formData.description);
       formDataObj.append('deductable', formData.deductable);
-      
-      // Only append image if a new one is selected
-      if (image) {
-        formDataObj.append('image', image);
-      }
-      
-      // Use axios directly for multipart form data
-      const axiosConfig = {
-        url: `http://localhost:8000${endpoint}`,
-        method: method,
-        data: formDataObj,
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        }
-      };
+            // Only append image if a new one is selected
+          if (image) {
+            formDataObj.append('image', image);
+          }
+          
+          // Save product ingredients
+          if (formData.deductable && selectedIngredients.length > 0) {
+            const ingredientsData = selectedIngredients.map(ingredient => ({
+              ingredient: ingredient.ingredient,
+              quantity: ingredient.quantity,
+              required_unit: ingredient.required_unit
+            }));
+            formDataObj.append('ingredients', JSON.stringify(ingredientsData));
+          }
+          
+          // Use axios directly for multipart form data
+          const axiosConfig = {
+            url: `http://localhost:8000${endpoint}`,
+            method: method,
+            data: formDataObj,
+            withCredentials: true,
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            }
+          };
       
       // First save the product
       const response = await axios(axiosConfig);
@@ -318,9 +336,9 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
       
       // If product is deductable, update the ingredients
       if (formData.deductable && selectedIngredients.length > 0) {
-        // Filter out ingredients without both id and quantity
+        // Filter out ingredients without all required fields
         const validIngredients = selectedIngredients.filter(item => 
-          item.ingredient && item.quantity && parseFloat(item.quantity) > 0
+          item.ingredient && item.quantity && parseFloat(item.quantity) > 0 && item.required_unit
         );
         
         if (validIngredients.length > 0) {
@@ -344,28 +362,28 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
       onClose();
     } catch (err) {
       console.error('Error saving product:', err);
-    
-    // Handle API validation errors
+      
+      // Handle API validation errors
       if (err.response && err.response.data) {
         const apiErrors = err.response.data;
-      const formattedErrors = {};
-      
-      Object.keys(apiErrors).forEach(key => {
-        formattedErrors[key] = apiErrors[key][0];
-      });
-      
-      setErrors(formattedErrors);
-    } else {
+        const formattedErrors = {};
+        
+        Object.keys(apiErrors).forEach(key => {
+          formattedErrors[key] = apiErrors[key][0];
+        });
+        
+        setErrors(formattedErrors);
+      } else {
         toast.error(isEditing ? "Failed to update product" : "Failed to create product");
-    }
+      }
   } finally {
     setLoading(false);
   }
 };
 
-return (
-  <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[525px]">
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Product" : "Add New Product"}</DialogTitle>
           <DialogDescription>
@@ -510,74 +528,142 @@ return (
             
             {/* Ingredients Selection - Only shown when deductable is checked */}
             {formData.deductable && (
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label className="text-right mt-2">
-                  Ingredients
-                </Label>
-                <div className="col-span-3 space-y-3">
-                  <ScrollArea className="max-h-[300px] border rounded-md p-3">
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <Label className="mb-2 block">
+                    Ingredients
+                  </Label>
+                  <ScrollArea className="max-h-[300px] border rounded-md">
                     {selectedIngredients.length === 0 ? (
-                      <p className="text-sm text-muted-foreground p-2">No ingredients selected</p>
+                      <p className="text-sm text-muted-foreground p-4 text-center">No ingredients selected</p>
                     ) : (
-                      <div className="space-y-3">
-                        {selectedIngredients.map((item, index) => (
-                          <div key={index} className="flex items-center space-x-2">
-                            <select
-                              value={item.ingredient || ''}
-                              onChange={(e) => handleIngredientChange(index, 'ingredient', e.target.value)}
-                              className="flex-1 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <option value="">Select ingredient...</option>
-                              {ingredients.map((ing) => (
-                                <option key={ing.id} value={ing.id}>
-                                  {ing.name} ({ing.stock} {ing.unit})
-                                </option>
-                              ))}
-                            </select>
-                            <div className="flex items-center">
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="Qty"
-                                value={item.quantity || ''}
-                                onChange={(e) => handleIngredientChange(index, 'quantity', e.target.value)}
-                                className="w-20"
-                              />
-                              <span className="ml-1 text-sm">
-                                {item.ingredient && ingredients.find(i => i.id == item.ingredient)?.unit}
-                              </span>
+                      <div className="space-y-3 p-3">
+                        {selectedIngredients.map((item, index) => {
+                          const selectedIng = ingredients.find(ing => ing.id == item.ingredient);
+                          const ingredientUnit = selectedIng ? selectedIng.unit : '';
+                          const unitOptions = ['g', 'kg', 'ml', 'l', 'pcs', 'tbsp', 'tsp'];
+                          const uniqueUnits = ingredientUnit && !unitOptions.includes(ingredientUnit) 
+                            ? [ingredientUnit, ...unitOptions] 
+                            : unitOptions;
+                          
+                          return (
+                            <div key={index} className="grid grid-cols-12 gap-2 items-start">
+                              <div className="col-span-5">
+                                <select
+                                  value={item.ingredient || ''}
+                                  onChange={(e) => handleIngredientChange(index, 'ingredient', e.target.value)}
+                                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                                >
+                                  <option value="">Select ingredient...</option>
+                                  {ingredients.map((ing) => (
+                                    <option key={ing.id} value={ing.id}>
+                                      {ing.name} ({ing.stock} {ing.unit})
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="col-span-6">
+                                <ButtonGroup className="w-full">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="Quantity"
+                                    value={item.quantity || ''}
+                                    onChange={(e) => handleIngredientChange(index, 'quantity', e.target.value)}
+                                    onKeyDown={(e) => {
+                                      // Allow: backspace, delete, tab, escape, enter, decimal point
+                                      if ([46, 8, 9, 27, 13, 110, 190].indexOf(e.keyCode) !== -1 ||
+                                        // Allow: Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+                                        (e.keyCode === 65 && e.ctrlKey === true) ||
+                                        (e.keyCode === 67 && e.ctrlKey === true) ||
+                                        (e.keyCode === 86 && e.ctrlKey === true) ||
+                                        (e.keyCode === 88 && e.ctrlKey === true) ||
+                                        // Allow: home, end, left, right
+                                        (e.keyCode >= 35 && e.keyCode <= 39)) {
+                                        return;
+                                      }
+                                      // Ensure that it is a number and stop the keypress
+                                      if ((e.shiftKey || (e.keyCode < 48 || e.keyCode > 57)) && (e.keyCode < 96 || e.keyCode > 105)) {
+                                        e.preventDefault();
+                                      }
+                                    }}
+                                    onPaste={(e) => {
+                                      const pastedText = e.clipboardData.getData('text');
+                                      if (!/^\d*\.?\d*$/.test(pastedText)) {
+                                        e.preventDefault();
+                                      }
+                                    }}
+                                    className="h-9 rounded-r-none border-r-0"
+                                  />
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button 
+                                        type="button"
+                                        variant="outline" 
+                                        className="h-9 !pl-3 !pr-2 min-w-[80px] rounded-l-none justify-between"
+                                      >
+                                        <span className="text-sm">{item.required_unit || 'Unit'}</span>
+                                        <ChevronDown className="h-4 w-4 ml-1" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="min-w-[100px]">
+                                      {uniqueUnits.map(unit => (
+                                        <DropdownMenuItem 
+                                          key={unit}
+                                          onClick={() => handleIngredientChange(index, 'required_unit', unit)}
+                                        >
+                                          {unit}
+                                        </DropdownMenuItem>
+                                      ))}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </ButtonGroup>
+                                {selectedIng && !item.required_unit && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Ingredient uses: {selectedIng.unit}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="col-span-1">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRemoveIngredient(index)}
+                                  className="h-9 w-9"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleRemoveIngredient(index)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </ScrollArea>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleAddIngredient}
-                    className="flex items-center"
-                  >
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Ingredient
-                  </Button>
+                  <div className="flex justify-between items-center mt-3">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleAddIngredient}
+                      className="flex items-center"
+                    >
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Ingredient
+                    </Button>
+                    <div className="text-sm text-muted-foreground">
+                      {selectedIngredients.length} ingredient{selectedIngredients.length !== 1 ? 's' : ''}
+                    </div>
+                  </div>
                   {errors.ingredients && (
-                    <p className="text-sm text-red-500">
+                    <p className="text-sm text-red-500 mt-2">
                       {errors.ingredients}
                     </p>
                   )}
                   {loadingIngredients && (
-                    <p className="text-sm text-muted-foreground">Loading ingredients...</p>
+                    <p className="text-sm text-muted-foreground text-center py-4">Loading ingredients...</p>
                   )}
                 </div>
               </div>

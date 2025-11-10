@@ -105,7 +105,20 @@ export function IngredientFormDialog({
         // Create new ingredient
         await ingredientsApi.createIngredient(data);
         toast.success("Ingredient added successfully");
+        
+        // Clear form fields for new ingredient creation
+        form.reset({
+          name: "",
+          category: "",
+          stock: 0,
+          unit: "",
+          reorder_point: 0,
+          cost_per_unit: 0,
+          notes: "",
+        });
       }
+      
+      // Close dialog and trigger success callback
       onOpenChange(false);
       if (onSuccess) onSuccess();
     } catch (error) {

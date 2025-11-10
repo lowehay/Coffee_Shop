@@ -28,38 +28,33 @@ class OrderItemViewSet(viewsets.ModelViewSet):
         # Get the order
         order_id = self.request.data.get('order')
         if not order_id:
-            # Also check if order is directly in validated_data
             order = serializer.validated_data.get('order')
             if not order:
                 raise serializers.ValidationError({"order": "Order is required"})
         else:
             try:
                 order = Order.objects.get(pk=order_id)
-                # Add order to validated_data so it's available during save
                 serializer.validated_data['order'] = order
             except Order.DoesNotExist:
                 raise serializers.ValidationError({"order": "Order not found"})
         
-        # Check if there's enough stock
+        # Only allow adding items to pending/preparing orders
+        if order.status not in ['pending', 'preparing']:
+            raise serializers.ValidationError(
+                {"order": f"Cannot add items to order with status: {order.status}"}
+            )
+        
+        # Check if there's enough stock (validation only, no deduction)
         product = serializer.validated_data['product']
         quantity = serializer.validated_data['quantity']
         
-        # Use available_stock for validation (handles both regular and ingredient-based products)
         available = product.get_available_stock()
         if available < quantity:
             raise serializers.ValidationError({
                 "quantity": f"Not enough available. Only {available} {product.name} can be made with current ingredients."
             })
-            
-        # For non-deductable products, update product stock directly
-        if not product.deductable:
-            product.stock -= quantity
-            product.save()
-            
-        # For deductable products, we don't deduct anything yet
-        # Ingredients will be deducted when order is marked as completed
-        
-        # Save with the current price
+                                                                                                                                                                                                                                                                                                                                                                                                                  
+        # Save with current price - no stock changes during creation
         serializer.save(price=product.price)
 
 
@@ -73,28 +68,81 @@ class OrderViewSet(viewsets.ModelViewSet):
         return queryset.prefetch_related('items', 'status_history')
     
     def perform_update(self, serializer):
-        # Check if status has changed
         instance = self.get_object()
         old_status = instance.status
+        new_status = serializer.validated_data.get('status', old_status)
+        
+        # Prevent cancellation during processing
+        if old_status in ['processing', 'preparing'] and new_status == 'cancelled':
+            raise serializers.ValidationError(
+                {"status": "Cannot cancel order while it's being processed"}
+            )
+        
+        # Handle stock deduction only when marking as completed
+        if new_status == 'completed' and old_status != 'completed':
+            # Check if all products have enough stock
+            stock_issues = []
+            
+            print(f"Checking stock for order {instance.id}:")
+            for item in instance.items.all():
+                if item.product.deductable:
+                    available = item.product.get_available_stock()
+                    print(f"  Product: {item.product.name}, Available: {available}, Required: {item.quantity}")
+                    if available < item.quantity:
+                        stock_issues.append({
+                            'product': item.product.name,
+                            'available': available,
+                            'required': item.quantity,
+                            'shortage': item.quantity - available
+                        })
+                else:
+                    # For non-deductable products, check direct stock
+                    if item.product.stock < item.quantity:
+                        stock_issues.append({
+                            'product': item.product.name,
+                            'available': item.product.stock,
+                            'required': item.quantity,
+                            'shortage': item.quantity - item.product.stock
+                        })
+            
+            if stock_issues:
+                error_messages = []
+                for issue in stock_issues:
+                    error_messages.append(
+                        f"{issue['product']}: Available {issue['available']}, Required {issue['required']} (shortage: {issue['shortage']})"
+                    )
+                raise serializers.ValidationError({
+                    "status": f"Cannot complete order due to insufficient stock: {'; '.join(error_messages)}"
+                })
+            
+            try:
+                self.process_ingredients(instance, 'deduct')
+            except ValueError as e:
+                raise serializers.ValidationError({"status": str(e)})
+        
+        # Handle stock return when cancelling from non-processing states
+        elif new_status == 'cancelled' and old_status not in ['processing', 'preparing']:
+            self.process_ingredients(instance, 'return')
+        
         updated_instance = serializer.save()
         
-        # If status changed, create history entry
-        if 'status' in serializer.validated_data and old_status != updated_instance.status:
-            # Get username if available
+        # Create status history
+        if old_status != new_status:
             username = None
             if hasattr(self.request, 'user') and self.request.user.is_authenticated:
                 username = self.request.user.username
                 
             OrderStatusHistory.objects.create(
                 order=updated_instance,
-                status=updated_instance.status,
-                changed_by=username
+                status=new_status,
             )
     
     @transaction.atomic
     def process_ingredients(self, order, action):
         """Process ingredients for an order based on action type (deduct or return)"""
-        # Process all order items
+        if order.status == 'cancelled' and action == 'deduct':
+            raise ValueError("Cannot process ingredients for cancelled order")
+            
         order_items = OrderItem.objects.filter(order=order)
         processed_ingredients = []
         
@@ -102,38 +150,75 @@ class OrderViewSet(viewsets.ModelViewSet):
             product = item.product
             quantity = item.quantity
             
-            # Only process deductable products
             if product.deductable:
-                # Get all ingredients for this product
                 product_ingredients = ProductIngredient.objects.filter(product=product)
                 
-                # Process each ingredient
-                for product_ingredient in product_ingredients:
-                    ingredient = product_ingredient.ingredient
-                    amount = product_ingredient.quantity * Decimal(quantity)
+                for pi in product_ingredients:
+                    ingredient = pi.ingredient
+                    required_amount = pi.quantity * quantity
+                    required_unit = pi.required_unit
+                    ingredient_unit = ingredient.unit
                     
-                    # Deduct or return based on action
-                    if action == "deduct":
-                        # Verify we have enough stock (safety check)
-                        if ingredient.stock < amount:
-                            raise serializers.ValidationError(
-                                f"Not enough {ingredient.name} in stock to complete this order."
-                            )
-                        # Deduct from stock
-                        ingredient.stock -= amount
-                    elif action == "return":
-                        # Return to stock
-                        ingredient.stock += amount
+                    # Convert required_amount to ingredient's base unit
+                    conversion_factors = {
+                        'g': {'kg': 0.001, 'mg': 1000, 'g': 1, 'tsp': 0.2, 'tbsp': 0.067},
+                        'kg': {'g': 1000, 'mg': 1000000, 'kg': 1, 'tsp': 200, 'tbsp': 67},
+                        'ml': {'l': 0.001, 'cl': 0.1, 'ml': 1, 'tsp': 0.2, 'tbsp': 0.067},
+                        'l': {'ml': 1000, 'cl': 10, 'l': 1, 'tsp': 200, 'tbsp': 67},
+                        'pcs': {'pcs': 1, 'dozen': 0.0833, 'unit': 1},
+                        'tbsp': {'tbsp': 1, 'tsp': 3, 'ml': 15, 'g': 15},
+                        'tsp': {'tsp': 1, 'tbsp': 0.333333, 'ml': 5, 'g': 5},
+                    }
                     
-                    ingredient.save()
+                    # Convert required amount to ingredient's base unit
+                    required_in_base_unit = float(required_amount)
+                    req_unit_lower = str(required_unit).lower().strip()
+                    ing_unit_lower = str(ingredient_unit).lower().strip()
                     
-                    processed_ingredients.append({
-                        "product": product.name,
-                        "ingredient": ingredient.name,
-                        "amount": float(amount),
-                        "unit": ingredient.unit,
-                        "action": action
-                    })
+                    if req_unit_lower != ing_unit_lower:
+                        # Special coffee conversion
+                        if (ing_unit_lower, req_unit_lower) in [('kg', 'ml'), ('g', 'ml')]:
+                            if ing_unit_lower == 'kg' and req_unit_lower == 'ml':
+                                required_in_base_unit = float(required_amount) / 2500  # ml to kg
+                            elif ing_unit_lower == 'g' and req_unit_lower == 'ml':
+                                required_in_base_unit = float(required_amount) / 2.5  # ml to g
+                        elif req_unit_lower in conversion_factors and ing_unit_lower in conversion_factors[req_unit_lower]:
+                            # Convert from required unit to ingredient unit
+                            required_in_base_unit = float(required_amount) * conversion_factors[req_unit_lower][ing_unit_lower]
+                    
+                    if action == 'deduct':
+                        print(f"  Deducting {ingredient.name}: {required_amount}{required_unit} → {required_in_base_unit}{ingredient_unit}")
+                        print(f"    Current stock: {ingredient.stock}{ingredient_unit}")
+                        
+                        if ingredient.stock < required_in_base_unit:
+                            error_msg = f"Not enough {ingredient.name} in stock. Required: {required_in_base_unit}{ingredient_unit}, Available: {ingredient.stock}{ingredient_unit}"
+                            print(f"    ERROR: {error_msg}")
+                            raise ValueError(error_msg)
+                        
+                        ingredient.stock = F('stock') - required_in_base_unit
+                        ingredient.save()
+                        print(f"    Deducted successfully")
+                        processed_ingredients.append(f"{ingredient.name} (-{required_in_base_unit}{ingredient_unit})")
+                        
+                    elif action == 'return':
+                        ingredient.stock = F('stock') + required_amount
+                        ingredient.save()
+                        processed_ingredients.append(f"{ingredient.name} (+{required_amount})")
+            else:
+                # Handle non-deductable products
+                if action == 'deduct':
+                    if product.stock < quantity:
+                        raise ValueError(
+                            f"Not enough {product.name} in stock. "
+                            f"Required: {quantity}, Available: {product.stock}"
+                        )
+                    product.stock = F('stock') - quantity
+                    product.save()
+                    processed_ingredients.append(f"{product.name} (-{quantity})")
+                elif action == 'return':
+                    product.stock = F('stock') + quantity
+                    product.save()
+                    processed_ingredients.append(f"{product.name} (+{quantity})")
         
         return processed_ingredients
     
@@ -154,19 +239,65 @@ class OrderViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        old_status = order.status
+        
+        # Prevent cancellation during processing/preparing
+        if old_status in ['processing', 'preparing'] and new_status == 'cancelled':
+            return Response(
+                {'error': 'Cannot cancel order while it is being processed or prepared'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         # Only update if status has changed
         if order.status != new_status:
-            old_status = order.status
             ingredient_changes = []
+            
+            # Check stock availability before completing
+            if new_status == "completed" and old_status != "completed":
+                stock_issues = []
+                
+                print(f"Checking stock for order {order.id}:")
+                for item in order.items.all():
+                    if item.product.deductable:
+                        available = item.product.get_available_stock()
+                        print(f"  Product: {item.product.name}, Available: {available}, Required: {item.quantity}")
+                        if available < item.quantity:
+                            stock_issues.append({
+                                'product': item.product.name,
+                                'available': available,
+                                'required': item.quantity,
+                                'shortage': item.quantity - available
+                            })
+                    else:
+                        if item.product.stock < item.quantity:
+                            stock_issues.append({
+                                'product': item.product.name,
+                                'available': item.product.stock,
+                                'required': item.quantity,
+                                'shortage': item.quantity - item.product.stock
+                            })
+                
+                if stock_issues:
+                    error_messages = []
+                    for issue in stock_issues:
+                        error_messages.append(
+                            f"{issue['product']}: Available {issue['available']}, Required {issue['required']} (shortage: {issue['shortage']})"
+                        )
+                    return Response(
+                        {'error': f"Cannot complete order due to insufficient stock: {'; '.join(error_messages)}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
             
             # Process ingredient stock changes based on status change
             try:
                 # If new status is completed, deduct ingredients
-                if new_status == "completed":
+                if new_status == "completed" and old_status != "completed":
+                    print(f"Deducting ingredients for order {order.id}")
                     ingredient_changes = self.process_ingredients(order, "deduct")
+                    print(f"Successfully deducted: {ingredient_changes}")
                 
-                # If previously processing/pending and new status is cancelled, return any reserved ingredients
-                if new_status == "cancelled" and old_status in ["pending", "processing"]:
+                # If cancelling from non-processing states, return ingredients
+                if new_status == "cancelled" and old_status not in ["processing", "preparing", "completed"]:
                     ingredient_changes = self.process_ingredients(order, "return")
                     
                 # Update order status
@@ -224,12 +355,6 @@ class OrderViewSet(viewsets.ModelViewSet):
         try:
             product = Product.objects.get(pk=product_id)
             quantity = int(quantity)
-            
-            if quantity <= 0:
-                return Response(
-                    {'error': 'Quantity must be greater than zero'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
             
             # Check available stock
             available = product.get_available_stock()
@@ -338,41 +463,43 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     @transaction.atomic
-    def remove_item(self, request, pk=None):
-        """Remove an item from a pending order"""
+    def cancel_order(self, request, pk=None):
+        """Custom endpoint for safe order cancellation"""
         order = self.get_object()
         
-        # Only allow modifications for pending orders
-        if order.status != "pending":
+        # Check if order can be cancelled
+        if order.status in ['processing', 'preparing']:
             return Response(
-                {'error': 'Can only remove items from pending orders'}, 
+                {'error': 'Cannot cancel order while it is being processed'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Validate input
-        item_id = request.data.get('item_id')
-        if not item_id:
+        if order.status == 'completed':
             return Response(
-                {'error': 'Item ID is required'}, 
+                {'error': 'Cannot cancel completed order'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if order.status == 'cancelled':
+            return Response(
+                {'error': 'Order is already cancelled'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         try:
-            order_item = OrderItem.objects.get(pk=item_id, order=order)
-            order_item.delete()
-            
-            # Update order total
-            order.refresh_from_db()
-            order.update_total_price()
+            # Cancel the order and return ingredients
+            serializer = self.get_serializer(order, data={'status': 'cancelled'}, partial=True)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
             
             return Response({
                 'success': True,
-                'message': 'Item removed successfully',
-                'new_total': str(order.total_price)
+                'message': 'Order cancelled successfully',
+                'order': serializer.data
             })
             
-        except OrderItem.DoesNotExist:
+        except serializers.ValidationError as e:
             return Response(
-                {'error': 'Order item not found'}, 
-                status=status.HTTP_404_NOT_FOUND
+                {'error': str(e.detail)}, 
+                status=status.HTTP_400_BAD_REQUEST
             )

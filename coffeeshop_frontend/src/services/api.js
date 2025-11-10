@@ -40,6 +40,7 @@ api.interceptors.request.use(
  * Response interceptor
  * - Handle common responses
  * - Global error handling
+ * - Prevent infinite loops on auth failures
  */
 api.interceptors.response.use(
   (response) => {
@@ -50,6 +51,11 @@ api.interceptors.response.use(
     
     // Handle 401 Unauthorized errors (token expired)
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // Skip retry for /me/ endpoint to prevent loops
+      if (originalRequest.url?.includes('/me/')) {
+        return Promise.reject(error);
+      }
+      
       originalRequest._retry = true;
       
       try {
@@ -63,12 +69,16 @@ api.interceptors.response.use(
         // Retry the original request
         return api(originalRequest);
       } catch (refreshError) {
-        // If refresh fails, redirect to login
-        // You might want to use a global state or event to handle this
-        console.error('Session expired. Please log in again.');
-        window.location.href = '/login';
+        // If refresh fails, don't redirect - let components handle it
+        console.error('Token refresh failed, user needs to login');
         return Promise.reject(refreshError);
       }
+    }
+    
+    // Handle 400 Bad Request (invalid refresh token)
+    if (error.response?.status === 400 && originalRequest.url?.includes('/token/refresh/')) {
+      console.error('Invalid refresh token');
+      return Promise.reject(error);
     }
     
     return Promise.reject(error);

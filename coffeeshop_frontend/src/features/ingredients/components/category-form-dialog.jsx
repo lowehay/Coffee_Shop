@@ -77,7 +77,15 @@ export function CategoryFormDialog({
         // Create new category
         await ingredientsApi.createCategory(data);
         toast.success("Category added successfully");
+        
+        // Clear form fields for new category creation
+        form.reset({
+          name: "",
+          description: "",
+        });
       }
+      
+      // Close dialog and trigger success callback
       onOpenChange(false);
       if (onSuccess) onSuccess();
     } catch (error) {
