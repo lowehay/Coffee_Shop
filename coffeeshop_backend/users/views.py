@@ -39,9 +39,11 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 'access_token',
                 response.data['access'],
                 max_age=5*60,  # 5 minutes
+                path='/',
                 httponly=True,
                 samesite='None' if is_production else 'Lax',
-                secure=is_production  # True in production with HTTPS
+                secure=is_production,  # True in production with HTTPS
+                domain=None  # Let browser handle domain
             )
             del response.data['access']
             
@@ -50,9 +52,11 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 'refresh_token',
                 response.data['refresh'],
                 max_age=14*24*60*60,  # 14 days
+                path='/',
                 httponly=True,
                 samesite='None' if is_production else 'Lax',
-                secure=is_production  # True in production with HTTPS
+                secure=is_production,  # True in production with HTTPS
+                domain=None  # Let browser handle domain
             )
             del response.data['refresh']
             
