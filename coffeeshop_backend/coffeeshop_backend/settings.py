@@ -88,6 +88,12 @@ CSRF_TRUSTED_ORIGINS = [
     "https://coffee-shop-self-sigma.vercel.app",  # No trailing slash
 ]
 
+# Cookie settings for cross-site requests
+SESSION_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax'
+SESSION_COOKIE_SECURE = not DEBUG  # True in production (HTTPS)
+CSRF_COOKIE_SAMESITE = 'None' if not DEBUG else 'Lax'
+CSRF_COOKIE_SECURE = not DEBUG  # True in production (HTTPS)
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise for static files
