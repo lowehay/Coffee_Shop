@@ -66,21 +66,19 @@ FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
 
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOW_ALL_ORIGINS = False
-    CORS_ALLOWED_ORIGINS = [
-        FRONTEND_URL,
-    ]
-
-# Enable cookies in CORS requests
-CORS_ALLOW_CREDENTIALS = True
-
-# Add local development origins
-if DEBUG:
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ]
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = [
+        FRONTEND_URL,
+        "https://coffee-shop-self-sigma.vercel.app",
+    ]
+
+# Enable cookies in CORS requests
+CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
     FRONTEND_URL,
