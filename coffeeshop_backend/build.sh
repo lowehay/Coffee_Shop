@@ -5,4 +5,7 @@ set -o errexit
 pip install -r requirements.txt
 
 python manage.py collectstatic --no-input
-python manage.py migrate --fake-initial
+python manage.py migrate
+
+# Create superuser if it doesn't exist
+python create_superuser.py
