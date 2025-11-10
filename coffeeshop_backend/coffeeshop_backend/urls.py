@@ -28,6 +28,7 @@ urlpatterns = [
     path('', include('users.urls')),
 ]
 
-# Serve media files in development
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve media files in all environments
+# Note: On Render free tier, uploaded files are ephemeral and will be lost on restart
+# For production, consider using cloud storage like Cloudinary or AWS S3
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
