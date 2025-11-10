@@ -5,15 +5,16 @@ from ingredient_inventory.serializers import IngredientSerializer
 class ProductIngredientSerializer(serializers.ModelSerializer):
     ingredient_name = serializers.ReadOnlyField(source='ingredient.name')
     ingredient_unit = serializers.ReadOnlyField(source='ingredient.unit')
+    required_unit = serializers.ReadOnlyField()
     
     class Meta:
         model = ProductIngredient
-        fields = ['id', 'ingredient', 'ingredient_name', 'ingredient_unit', 'quantity']
+        fields = ['id', 'ingredient', 'ingredient_name', 'ingredient_unit', 'quantity', 'required_unit']
 
 class ProductIngredientWriteSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductIngredient
-        fields = ['ingredient', 'quantity']
+        fields = ['ingredient', 'quantity', 'required_unit']
 
 class ProductSerializer(serializers.ModelSerializer):
     product_ingredients = ProductIngredientSerializer(many=True, read_only=True)

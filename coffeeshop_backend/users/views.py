@@ -57,22 +57,51 @@ class CookieTokenRefreshView(TokenRefreshView):
         refresh_token = self.request.COOKIES.get('refresh_token')
         if refresh_token:
             return {"refresh": refresh_token}
-        return self.request.data
+        # Return empty dict if no refresh token found, let validation handle it
+        return {"refresh": None}
 
     def post(self, request, *args, **kwargs):
+        # Get refresh token from cookies
+        refresh_token = self.request.COOKIES.get('refresh_token')
         
-        # Create a mutable copy of the request data
-        if hasattr(request.data, '_mutable'):
-            request.data._mutable = True
+        if not refresh_token:
+            return Response(
+                {"detail": "Refresh token not found in cookies"},     
+                status=status.HTTP_401_UNAUTHORIZED
+            )
         
-        # Add refresh token from cookies
-        token_data = self.extract_refresh_token()
-        request.data.update(token_data)
+        # Create mutable data with refresh token
+        data = {"refresh": refresh_token}
         
-        if hasattr(request.data, '_mutable'):
-            request.data._mutable = False
-             
-        return super().post(request, *args, **kwargs)
+        # Create a serializer instance with the data
+        from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+        serializer = TokenRefreshSerializer(data=data)
+        
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception as e:
+            return Response(
+                {"detail": "Invalid refresh token"}, 
+                status=status.HTTP_401_UNAUTHORIZED
+            )          
+        
+        # Get the validated data
+        validated_data = serializer.validated_data
+        
+        # Create response with new access token
+        response = Response({"detail": "Token refreshed successfully"})
+        
+        # Set new access token cookie
+        response.set_cookie(
+            'access_token',
+            validated_data['access'],
+            max_age=5*60,  # 5 minutes
+            httponly=True,
+            samesite='Lax',
+            secure=False  # Set to True in production with HTTPS
+        )
+        
+        return response
         
     def finalize_response(self, request, response, *args, **kwargs):
         if response.data.get('access'):

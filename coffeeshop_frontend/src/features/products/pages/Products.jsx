@@ -142,7 +142,7 @@ export default function Products() {
               <CardContent className="p-4 flex flex-col h-full">
                 {product.image && (
                   <div className="mb-4 w-full aspect-square overflow-hidden rounded-md relative group-hover:shadow transition-all duration-300">
-                    <img 
+                                   <img 
                       src={`${product.image}`} 
                       alt={product.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 

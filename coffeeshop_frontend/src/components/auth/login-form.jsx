@@ -40,6 +40,8 @@ export function LoginForm({
     } catch (err) {
       console.error("Login error:", err);
       toast.error("Invalid credentials");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -52,7 +54,7 @@ export function LoginForm({
               <div className="flex flex-col items-center text-center">
                 <h1 className="text-2xl font-bold">Welcome back</h1>
                 <p className="text-muted-foreground text-balance">
-                  Login to your Kopie Shop account
+                  Login to your Star Luck Cafe account
                 </p>
               </div>
               <div className="grid gap-3">
