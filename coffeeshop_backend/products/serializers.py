@@ -32,6 +32,17 @@ class ProductSerializer(serializers.ModelSerializer):
         # This ensures the frontend always sees the correct stock for deductable products
         if instance.deductable:
             data['stock'] = data['available_stock']
+        
+        # Ensure image URL is absolute (important for Cloudinary)
+        if instance.image:
+            request = self.context.get('request')
+            if request and not data['image'].startswith('http'):
+                # Build absolute URL for local storage
+                data['image'] = request.build_absolute_uri(instance.image.url)
+            elif data['image'] and not data['image'].startswith('http'):
+                # For Cloudinary, the URL should already be absolute
+                # But if it's not, use the image.url which Cloudinary provides
+                data['image'] = instance.image.url
             
         return data
         
