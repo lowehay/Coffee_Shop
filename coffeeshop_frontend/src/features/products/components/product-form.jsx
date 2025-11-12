@@ -117,7 +117,11 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
       });
       
       if (product.image) {
-        setImagePreview(`${product.image}`);
+        // Use full URL if relative path
+        const imageUrl = product.image.startsWith('http') 
+          ? product.image 
+          : `${import.meta.env.VITE_API_URL}${product.image}`;
+        setImagePreview(imageUrl);
       } else {
         setImagePreview(null);
       }
