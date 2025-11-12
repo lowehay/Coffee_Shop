@@ -32,11 +32,18 @@ export function LoginForm({
         password,
       });
       
-      // Fetch user data immediately after login
-      await fetchUserData();
+      // Small delay to ensure cookies are set in browser (especially for cross-origin in production)
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      toast.success("Login successful!");
-      navigate("/dashboard");
+      // Fetch user data after cookies are set
+      const success = await fetchUserData();
+      
+      if (success) {
+        toast.success("Login successful!");
+        navigate("/dashboard");
+      } else {
+        toast.error("Failed to load user data. Please try again.");
+      }
     } catch (err) {
       console.error("Login error:", err);
       toast.error("Invalid credentials");
