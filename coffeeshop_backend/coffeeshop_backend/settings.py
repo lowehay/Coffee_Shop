@@ -202,6 +202,9 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # WhiteNoise configuration for serving static files
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# WhiteNoise settings for CORS
+WHITENOISE_ALLOW_ALL_ORIGINS = True
+
 # Media files (User uploaded content)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
