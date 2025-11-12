@@ -22,7 +22,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
-import axios from "axios";
+import api from "@/services/api";
 
 export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
   const isEditing = !!product;
@@ -50,9 +50,7 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
     const fetchIngredients = async () => {
       try {
         setLoadingIngredients(true);
-        const response = await axios.get('http://localhost:8000/api/ingredients/ingredients/', {
-          withCredentials: true
-        });
+        const response = await api.get('/api/ingredients/ingredients/');
         setIngredients(response.data);
       } catch (error) {
         console.error('Error fetching ingredients:', error);
@@ -70,12 +68,11 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
     const fetchProductIngredients = async () => {
       if (product && product.id) {
         try {
-          const response = await axios.get(
-            `http://localhost:8000/api/products/products/${product.id}/`,
-            { withCredentials: true }
+          const response = await api.get(
+            `/api/products/products/${product.id}/`
           );
           
-          // Set deductable from product data
+          // Set deductable from product dataa
           if (response.data.deductable !== undefined) {
             setFormData(prevData => ({
               ...prevData,
@@ -120,7 +117,11 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
       });
       
       if (product.image) {
-        setImagePreview(`${product.image}`);
+        // Use full URL if relative path
+        const imageUrl = product.image.startsWith('http') 
+          ? product.image 
+          : `${import.meta.env.VITE_API_URL}${product.image}`;
+        setImagePreview(imageUrl);
       } else {
         setImagePreview(null);
       }
@@ -159,9 +160,8 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
       // If checked, fetch calculated stock if product already exists
       if (isEditing && product?.id) {
         try {
-          const response = await axios.get(
-            `http://localhost:8000/api/products/products/${product.id}/`,
-            { withCredentials: true }
+          const response = await api.get(
+            `/api/products/products/${product.id}/`
           );
           if (response.data.available_stock !== undefined) {
             // Set stock to the calculated available_stock
@@ -319,19 +319,15 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
             formDataObj.append('ingredients', JSON.stringify(ingredientsData));
           }
           
-          // Use axios directly for multipart form data
-          const axiosConfig = {
-            url: `http://localhost:8000${endpoint}`,
+          // Use api instance for multipart form data
+          const response = await api({
+            url: endpoint,
             method: method,
             data: formDataObj,
-            withCredentials: true,
             headers: {
               'Content-Type': 'multipart/form-data',
             }
-          };
-      
-      // First save the product
-      const response = await axios(axiosConfig);
+          });
       const savedProduct = response.data;
       
       // If product is deductable, update the ingredients
@@ -344,10 +340,9 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
         if (validIngredients.length > 0) {
           try {
             // Save product ingredients
-            await axios.post(
-              `http://localhost:8000/api/products/product-ingredients/${savedProduct.id}/`,
-              { ingredients: validIngredients },
-              { withCredentials: true }
+            await api.post(
+              `/api/products/product-ingredients/${savedProduct.id}/`,
+              { ingredients: validIngredients }
             );
           } catch (error) {
             console.error("Error saving ingredients:", error);

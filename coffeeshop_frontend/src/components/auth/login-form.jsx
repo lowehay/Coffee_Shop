@@ -32,11 +32,18 @@ export function LoginForm({
         password,
       });
       
-      // Fetch user data immediately after login
-      await fetchUserData();
+      // Small delay to ensure cookies are set in browser (especially for cross-origin in production)
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      toast.success("Login successful!");
-      navigate("/dashboard");
+      // Fetch user data after cookies are set
+      const success = await fetchUserData();
+      
+      if (success) {
+        toast.success("Login successful!");
+        navigate("/dashboard");
+      } else {
+        toast.error("Failed to load user data. Please try again.");
+      }
     } catch (err) {
       console.error("Login error:", err);
       toast.error("Invalid credentials");
@@ -107,9 +114,13 @@ export function LoginForm({
               </div>
               <div className="text-center text-sm">
                 Don&apos;t have an account?{" "}
-                <a href="#" className="underline underline-offset-4">
+                <button
+                  type="button"
+                  className="underline underline-offset-4 hover:text-primary"
+                  onClick={() => navigate("/register")}
+                >
                   Sign up
-                </a>
+                </button>
               </div>
             </div>
           </form>

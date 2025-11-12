@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from .models import Customer
 from .serializers import CustomerSerializer
+from django.contrib.auth.models import User
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -28,14 +29,21 @@ class UserInfoView(APIView):
 
 class CookieTokenObtainPairView(TokenObtainPairView):
     def finalize_response(self, request, response, *args, **kwargs):
+        from django.conf import settings
+        
+        # Determine cookie settings based on DEBUG mode
+        is_production = not settings.DEBUG
+        
         if response.data.get('access'):
             response.set_cookie(
                 'access_token',
                 response.data['access'],
                 max_age=5*60,  # 5 minutes
+                path='/',
                 httponly=True,
-                samesite='Lax',
-                secure=False  # Set to True in production with HTTPS
+                samesite='None' if is_production else 'Lax',
+                secure=is_production,  # True in production with HTTPS
+                domain=None  # Let browser handle domain
             )
             del response.data['access']
             
@@ -44,9 +52,11 @@ class CookieTokenObtainPairView(TokenObtainPairView):
                 'refresh_token',
                 response.data['refresh'],
                 max_age=14*24*60*60,  # 14 days
+                path='/',
                 httponly=True,
-                samesite='Lax',
-                secure=False  # Set to True in production with HTTPS
+                samesite='None' if is_production else 'Lax',
+                secure=is_production,  # True in production with HTTPS
+                domain=None  # Let browser handle domain
             )
             del response.data['refresh']
             
@@ -92,26 +102,32 @@ class CookieTokenRefreshView(TokenRefreshView):
         response = Response({"detail": "Token refreshed successfully"})
         
         # Set new access token cookie
+        from django.conf import settings
+        is_production = not settings.DEBUG
+        
         response.set_cookie(
             'access_token',
             validated_data['access'],
             max_age=5*60,  # 5 minutes
             httponly=True,
-            samesite='Lax',
-            secure=False  # Set to True in production with HTTPS
+            samesite='None' if is_production else 'Lax',
+            secure=is_production
         )
         
         return response
         
     def finalize_response(self, request, response, *args, **kwargs):
+        from django.conf import settings
+        is_production = not settings.DEBUG
+        
         if response.data.get('access'):
             response.set_cookie(
                 'access_token',
                 response.data['access'],
                 max_age=5*60,  # 5 minutes
                 httponly=True,
-                samesite='Lax',
-                secure=False  # Set to True in production with HTTPS
+                samesite='None' if is_production else 'Lax',
+                secure=is_production
             )
             del response.data['access']
             
@@ -138,3 +154,53 @@ class LogoutView(APIView):
         )
         
         return response
+
+class RegisterView(APIView):
+    def post(self, request):
+        print("Registration request data:", request.data)  # Debug log
+        username = request.data.get('username')
+        email = request.data.get('email')
+        password = request.data.get('password')
+        
+        if not username or not email or not password:
+            return Response(
+                {"error": "Username, email, and password are required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if User.objects.filter(username=username).exists():
+            return Response(
+                {"error": "Username already exists"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        if User.objects.filter(email=email).exists():
+            return Response(
+                {"error": "Email already exists"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password
+            )
+            
+            # Create Customer profile
+            Customer.objects.create(
+                user=user,
+                name=username
+            )
+            
+            return Response(
+                {"message": "User registered successfully"}, 
+                status=status.HTTP_201_CREATED
+            )
+            
+        except Exception as e:
+            print("Registration error:", str(e))  # Debug log
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )

@@ -6,8 +6,13 @@ import axios from 'axios';
  * - Configured with credentials for authentication
  * - Can be extended with interceptors for token refresh, error handling, etc.
  */
+
+// API URL from environment variable
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+console.log('API URL:', API_URL); // Debug log to verify environment variable
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: API_URL,
   withCredentials: true
 });
 
@@ -57,7 +62,7 @@ api.interceptors.response.use(
       try {
         // Attempt to refresh the token
         await axios.post(
-          'http://localhost:8000/api/token/refresh/', 
+          `${API_URL}/api/token/refresh/`, 
           {}, 
           { withCredentials: true }
         );

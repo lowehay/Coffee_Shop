@@ -143,8 +143,9 @@ export default function Products() {
                 {product.image && (
                   <div className="mb-4 w-full aspect-square overflow-hidden rounded-md relative group-hover:shadow transition-all duration-300">
                                    <img 
-                      src={`${product.image}`} 
+                      src={product.image.startsWith('http') ? product.image : `${import.meta.env.VITE_API_URL}${product.image}`} 
                       alt={product.name}
+                      crossOrigin="anonymous"
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                     />
                     {product.stock <= 10 && (
