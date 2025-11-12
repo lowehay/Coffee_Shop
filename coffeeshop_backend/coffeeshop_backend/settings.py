@@ -219,23 +219,15 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # WhiteNoise settings for CORS
 WHITENOISE_ALLOW_ALL_ORIGINS = True
 
-# Cloudinary configuration for media storage
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
-    'API_KEY': os.environ.get('CLOUDINARY_API_KEY', ''),
-    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', ''),
-}
-
 # Use Cloudinary for media storage in production, local storage in development
-if not DEBUG and CLOUDINARY_STORAGE['CLOUD_NAME']:
+if not DEBUG and os.environ.get('CLOUDINARY_CLOUD_NAME'):
     DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-    MEDIA_URL = '/media/'  # Cloudinary will handle the actual URL
-    print(f"✅ Using Cloudinary storage: {CLOUDINARY_STORAGE['CLOUD_NAME']}")
+    print(f"✅ Using Cloudinary storage: {os.environ.get('CLOUDINARY_CLOUD_NAME')}")
 else:
     # Local media storage for development
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'
-    print(f"⚠️ Using local storage (DEBUG={DEBUG}, CLOUD_NAME={CLOUDINARY_STORAGE['CLOUD_NAME']})")
+    print(f"⚠️ Using local storage (DEBUG={DEBUG}, CLOUD_NAME={os.environ.get('CLOUDINARY_CLOUD_NAME', 'not set')})")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
