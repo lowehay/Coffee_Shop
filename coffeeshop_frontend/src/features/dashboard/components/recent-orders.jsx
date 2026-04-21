@@ -36,7 +36,7 @@ export function RecentOrders({ className }) {
         setOrders(data);
         setError(null);
       } catch (err) {
-        console.error('Failed to fetch recent orders:', err);
+        if (import.meta.env.DEV) console.error('Failed to fetch recent orders:', err);
         setError('Failed to load recent orders. Please try again later.');
         toast.error("Could not load recent orders. Please try again.");
       } finally {

@@ -53,7 +53,7 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
         const response = await api.get('/api/ingredients/ingredients/');
         setIngredients(response.data);
       } catch (error) {
-        console.error('Error fetching ingredients:', error);
+        if (import.meta.env.DEV) console.error('Error fetching ingredients:', error);
         toast.error('Failed to load ingredients');
       } finally {
         setLoadingIngredients(false);
@@ -90,7 +90,7 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
             setSelectedIngredients(formattedIngredients);
           }
         } catch (error) {
-          console.error('Error fetching product ingredients:', error);
+          if (import.meta.env.DEV) console.error('Error fetching product ingredients:', error);
         }
       }
     };
@@ -171,7 +171,7 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
             }));
           }
         } catch (error) {
-          console.error('Error fetching product available stock:', error);
+          if (import.meta.env.DEV) console.error('Error fetching product available stock:', error);
         }
       } else {
         // For new products, just set stock to 0 - it will be calculated
@@ -345,7 +345,7 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
               { ingredients: validIngredients }
             );
           } catch (error) {
-            console.error("Error saving ingredients:", error);
+            if (import.meta.env.DEV) console.error("Error saving ingredients:", error);
             toast.error("Product saved but failed to update ingredients");
             // Continue with success flow since the product itself was saved
           }
@@ -356,7 +356,7 @@ export function ProductForm({ isOpen, onClose, onSuccess, product = null }) {
       onSuccess();
       onClose();
     } catch (err) {
-      console.error('Error saving product:', err);
+      if (import.meta.env.DEV) console.error('Error saving product:', err);
       
       // Handle API validation errors
       if (err.response && err.response.data) {

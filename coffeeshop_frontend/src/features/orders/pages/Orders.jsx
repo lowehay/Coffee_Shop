@@ -39,7 +39,7 @@ export default function Orders() {
       setOrders(sortedOrders);
       setError(null);
     } catch (err) {
-      console.error('Error fetching orders:', err);
+      if (import.meta.env.DEV) console.error('Error fetching orders:', err);
       setError('Failed to load orders. Please try again.');
       toast.error('Could not load orders');
     } finally {

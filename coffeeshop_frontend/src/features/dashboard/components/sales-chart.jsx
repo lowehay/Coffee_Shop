@@ -48,7 +48,7 @@ export function SalesChart() {
         setChartData(prev => ({ ...prev, [type]: data }));
         setError(prev => ({ ...prev, [type]: null }));
       } catch (err) {
-        console.error(`Error fetching ${type} chart data:`, err);
+        if (import.meta.env.DEV) console.error(`Error fetching ${type} chart data:`, err);
         setError(prev => ({ ...prev, [type]: `Failed to load ${type} data` }));
       } finally {
         setLoading(prev => ({ ...prev, [type]: false }));
@@ -103,7 +103,6 @@ export function SalesChart() {
 
   // Handle tab change - just a placeholder for now, but we could add analytics tracking or other logic here
   const handleTabChange = (value) => {
-    console.log(`Tab changed to ${value}`);
     // We could add analytics tracking or other side effects here
   };
   

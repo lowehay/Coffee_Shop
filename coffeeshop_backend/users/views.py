@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from datetime import datetime
 
@@ -28,6 +28,8 @@ class UserInfoView(APIView):
         })
 
 class CookieTokenObtainPairView(TokenObtainPairView):
+    permission_classes = [AllowAny]
+
     def finalize_response(self, request, response, *args, **kwargs):
         from django.conf import settings
         
@@ -63,6 +65,8 @@ class CookieTokenObtainPairView(TokenObtainPairView):
         return super().finalize_response(request, response, *args, **kwargs)
 
 class CookieTokenRefreshView(TokenRefreshView):
+    permission_classes = [AllowAny]
+
     def extract_refresh_token(self):
         refresh_token = self.request.COOKIES.get('refresh_token')
         if refresh_token:
@@ -134,6 +138,8 @@ class CookieTokenRefreshView(TokenRefreshView):
         return super().finalize_response(request, response, *args, **kwargs)
 
 class LogoutView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
         response = Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
         
@@ -156,8 +162,9 @@ class LogoutView(APIView):
         return response
 
 class RegisterView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
-        print("Registration request data:", request.data)  # Debug log
         username = request.data.get('username')
         email = request.data.get('email')
         password = request.data.get('password')
@@ -199,8 +206,7 @@ class RegisterView(APIView):
             )
             
         except Exception as e:
-            print("Registration error:", str(e))  # Debug log
             return Response(
-                {"error": str(e)}, 
+                {"error": "Registration failed. Please try again."}, 
                 status=status.HTTP_400_BAD_REQUEST
             )

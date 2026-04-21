@@ -44,7 +44,7 @@ export function OrderForm({ isOpen, onClose, onSuccess }) {
       setProducts(availableProducts);
       setLoading(false);
     } catch (err) {
-      console.error('Error fetching products:', err);
+      if (import.meta.env.DEV) console.error('Error fetching products:', err);
       setLoading(false);
       toast.error('Could not load products');
     }
@@ -202,7 +202,7 @@ export function OrderForm({ isOpen, onClose, onSuccess }) {
       onClose();
       if (onSuccess) onSuccess();
     } catch (err) {
-      console.error('Error creating order:', err);
+      if (import.meta.env.DEV) console.error('Error creating order:', err);
       const errorMsg = err.response?.data?.detail || err.response?.data?.non_field_errors?.[0] || 'Failed to create order';
       toast.error(errorMsg);
     } finally {

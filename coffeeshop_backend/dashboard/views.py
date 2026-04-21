@@ -141,9 +141,9 @@ class DashboardStatsView(APIView):
                 }
             })
         
-        except Exception as e:
+        except Exception:
             return Response({
-                'error': str(e)
+                'error': 'Failed to load dashboard statistics'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -164,8 +164,8 @@ class SalesChartView(APIView):
                 return self.get_monthly_data()
             else:
                 return Response({'error': 'Invalid chart type'}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception:
+            return Response({'error': 'Failed to load chart data'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def get_daily_data(self):
         """

@@ -43,7 +43,7 @@ export function CartHeader() {
       await createOrder();
       // Toast is handled by CartContext, no need to show another one
     } catch (error) {
-      console.error('Error creating order:', error);
+      if (import.meta.env.DEV) console.error('Error creating order:', error);
       // Toast is handled by CartContext, no need to show another one
     } finally {
       setIsCreatingOrder(false);

@@ -48,7 +48,7 @@ export function ProductCartPage() {
       const response = await apiCallWithTokenRefresh('/api/products/products/');
       setProducts(response.data);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      if (import.meta.env.DEV) console.error('Error fetching products:', error);
       toast.error('Failed to load products');
     } finally {
       setLoading(false);
@@ -67,7 +67,7 @@ export function ProductCartPage() {
       await createOrder();
       // Toast is handled by CartContext, no need to show another one
     } catch (error) {
-      console.error('Error creating order:', error);
+      if (import.meta.env.DEV) console.error('Error creating order:', error);
       // Toast is handled by CartContext, no need to show another one
     } finally {
       setIsCreatingOrder(false);

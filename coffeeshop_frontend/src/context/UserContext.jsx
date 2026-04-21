@@ -5,20 +5,22 @@ import api from "../services/api";
 import { UserContext } from "./UserContext.context";
 
 
-// Add request interceptor for debugging
+// Add request interceptor for debugging (dev only)
 api.interceptors.request.use(config => {
-  console.log('Making request:', config.url);
+  if (import.meta.env.DEV) console.log('Making request:', config.url);
   return config;
 }, error => {
   return Promise.reject(error);
 });
 
-// Add response interceptor for debugging
+// Add response interceptor for debugging (dev only)
 api.interceptors.response.use(response => {
   return response;
 }, error => {
-  console.error('API Error:', error.response ? error.response.status : 'No response', 
-              error.response ? error.response.data : error.message);
+  if (import.meta.env.DEV) {
+    console.error('API Error:', error.response ? error.response.status : 'No response', 
+                error.response ? error.response.data : error.message);
+  }
   return Promise.reject(error);
 });
 
@@ -38,16 +40,16 @@ export function UserProvider({ children }) {
     
     try {
       const response = await api.get("/me/");
-      console.log("User data received:", response.data);
+      if (import.meta.env.DEV) console.log("User data received:", response.data);
       setUser({ ...response.data, avatar: "/avatars/admin.jpg" });
       setError(null);
       return true; // Successfully authenticated
     } catch (error) {
-      console.log("Authentication check failed:", error);
+      if (import.meta.env.DEV) console.log("Authentication check failed:", error);
       
       if (error.response?.status === 401) {
         // Token expired or invalid - don't retry, just clear user
-        console.log("User not authenticated or session expired");
+        if (import.meta.env.DEV) console.log("User not authenticated or session expired");
         setUser(null);
         setError(null); // Don't show error for unauthenticated users
       } else {
@@ -67,7 +69,7 @@ export function UserProvider({ children }) {
       // Call logout endpoint to clear cookies on server
       await api.post("/api/logout/");
     } catch (error) {
-      console.error("Logout error:", error);
+      if (import.meta.env.DEV) console.error("Logout error:", error);
     }
     
     // Clear token refresh timer
@@ -108,7 +110,7 @@ export function UserProvider({ children }) {
           });
         } catch (refreshError) {
           // Refresh failed - logout and redirect
-          console.error("Token refresh failed:", refreshError);
+          if (import.meta.env.DEV) console.error("Token refresh failed:", refreshError);
           await logout();
           throw new Error("Session expired. Please login again.");
         }
@@ -131,15 +133,15 @@ export function UserProvider({ children }) {
       try {
         // Only try to refresh if we have a user (we're logged in)
         if (user) {
-          console.log('Performing automatic token refresh');
+          if (import.meta.env.DEV) console.log('Performing automatic token refresh');
           await api.post('/api/token/refresh/');
-          console.log('Token refreshed successfully');
+          if (import.meta.env.DEV) console.log('Token refreshed successfully');
         }
       } catch (error) {
-        console.error('Automatic token refresh failed:', error);
+        if (import.meta.env.DEV) console.error('Automatic token refresh failed:', error);
         // If refresh fails, logout the user
         if (error.response && error.response.status === 401) {
-          console.log('Token refresh failed with 401, logging out');
+          if (import.meta.env.DEV) console.log('Token refresh failed with 401, logging out');
           logout();
         }
       }
@@ -158,14 +160,14 @@ export function UserProvider({ children }) {
   // Load user data on initial render - only once
   useEffect(() => {
     const checkInitialAuth = async () => {
-      console.log("Checking initial auth state...");
+      if (import.meta.env.DEV) console.log("Checking initial auth state...");
       
       // Always try to fetch user data first, regardless of cookie presence
       // The API will handle authentication via cookies
       try {
         await fetchUserData();
       } catch (error) {
-        console.log("Initial auth check failed:", error);
+        if (import.meta.env.DEV) console.log("Initial auth check failed:", error);
         // If fetch fails, user stays null and loading becomes false
         setLoading(false);
       }

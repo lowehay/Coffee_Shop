@@ -38,7 +38,7 @@ export function OrderStatusChart({ className }) {
         
         setError(null);
       } catch (err) {
-        console.error('Failed to fetch order status data:', err);
+        if (import.meta.env.DEV) console.error('Failed to fetch order status data:', err);
         setError('Failed to load order status data');
         toast.error("Could not load order status data. Please try again.");
       } finally {

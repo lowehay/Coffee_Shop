@@ -122,7 +122,7 @@ export function IngredientFormDialog({
       onOpenChange(false);
       if (onSuccess) onSuccess();
     } catch (error) {
-      console.error("Failed to save ingredient:", error);
+      if (import.meta.env.DEV) console.error("Failed to save ingredient:", error);
       toast.error(
         error.response?.data?.detail || "Failed to save ingredient"
       );
