@@ -102,8 +102,8 @@ class ProductIngredientView(APIView):
                 )
                 created_items.append(ProductIngredientSerializer(product_ingredient).data)
             
-            except Exception as e:
-                errors.append({"error": str(e), "item": item})
+            except Exception:
+                errors.append({"error": "Failed to add ingredient", "item": item})
         
         return Response({
             "created": created_items,

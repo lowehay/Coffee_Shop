@@ -45,7 +45,7 @@ export function LoginForm({
         toast.error("Failed to load user data. Please try again.");
       }
     } catch (err) {
-      console.error("Login error:", err);
+      if (import.meta.env.DEV) console.error("Login error:", err);
       toast.error("Invalid credentials");
     } finally {
       setLoading(false);

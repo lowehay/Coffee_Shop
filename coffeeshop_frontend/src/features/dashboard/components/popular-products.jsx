@@ -37,7 +37,7 @@ export function PopularProducts() {
       setProducts(data);
       setError(null);
     } catch (err) {
-      console.error('Failed to fetch popular products:', err);
+      if (import.meta.env.DEV) console.error('Failed to fetch popular products:', err);
       setError('Failed to load popular products. Please try again later.');
       toast.error("Could not load popular products. Please try again.");
     } finally {

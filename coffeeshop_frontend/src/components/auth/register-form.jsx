@@ -48,7 +48,7 @@ export function RegisterForm({ className, ...props }) {
       toast.success("Registration successful! Please login with your new credentials.")
       navigate("/")
     } catch (err) {
-      console.error("Registration error:", err)
+      if (import.meta.env.DEV) console.error("Registration error:", err)
       if (err.response?.data?.error) {
         toast.error(err.response.data.error)
       } else {

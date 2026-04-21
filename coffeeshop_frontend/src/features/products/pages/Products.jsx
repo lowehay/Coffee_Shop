@@ -30,7 +30,7 @@ export default function Products() {
       setProducts(response.data);
       setError(null);
     } catch (err) {
-      console.error('Error fetching products:', err);
+      if (import.meta.env.DEV) console.error('Error fetching products:', err);
       setError('Failed to load products. Please try again.');
       toast.error('Could not load products');
     } finally {
@@ -64,7 +64,7 @@ export default function Products() {
         // Refresh the products list
         fetchProducts();
       } catch (err) {
-        console.error('Error deleting product:', err);
+        if (import.meta.env.DEV) console.error('Error deleting product:', err);
         toast.error('Failed to delete product');
       }
     }
@@ -227,3 +227,4 @@ export default function Products() {
     </div>
   );
 }
+ 

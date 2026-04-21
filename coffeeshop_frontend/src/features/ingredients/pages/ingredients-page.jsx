@@ -46,7 +46,7 @@ export function IngredientsPage() {
       setIngredients(response.data);
       setLoading(false);
     } catch (error) {
-      console.error("Failed to fetch ingredients:", error);
+      if (import.meta.env.DEV) console.error("Failed to fetch ingredients:", error);
       toast.error("Failed to load ingredients");
       setLoading(false);
     }
@@ -57,7 +57,7 @@ export function IngredientsPage() {
       const response = await ingredientsApi.getCategories();
       setCategories(response.data);
     } catch (error) {
-      console.error("Failed to fetch categories:", error);
+      if (import.meta.env.DEV) console.error("Failed to fetch categories:", error);
       toast.error("Failed to load categories");
     }
   };
@@ -99,7 +99,7 @@ export function IngredientsPage() {
       }
       refreshData();
     } catch (error) {
-      console.error(`Failed to delete ${deleteItemType}:`, error);
+      if (import.meta.env.DEV) console.error(`Failed to delete ${deleteItemType}:`, error);
       toast.error(`Failed to delete ${deleteItemType}`);
     } finally {
       setDeleteDialogOpen(false);

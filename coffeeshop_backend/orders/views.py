@@ -3,11 +3,15 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db import transaction
 from django.db.models import F
+from django.conf import settings
 from .models import Order, OrderStatusHistory, OrderItem
 from .serializers import OrderSerializer, OrderStatusHistorySerializer, OrderItemSerializer
 from products.models import Product, ProductIngredient
 from ingredient_inventory.models import Ingredient
 from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 class OrderItemViewSet(viewsets.ModelViewSet):
     queryset = OrderItem.objects.all()
@@ -83,11 +87,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             # Check if all products have enough stock
             stock_issues = []
             
-            print(f"Checking stock for order {instance.id}:")
             for item in instance.items.all():
                 if item.product.deductable:
                     available = item.product.get_available_stock()
-                    print(f"  Product: {item.product.name}, Available: {available}, Required: {item.quantity}")
                     if available < item.quantity:
                         stock_issues.append({
                             'product': item.product.name,
@@ -187,17 +189,15 @@ class OrderViewSet(viewsets.ModelViewSet):
                             required_in_base_unit = float(required_amount) * conversion_factors[req_unit_lower][ing_unit_lower]
                     
                     if action == 'deduct':
-                        print(f"  Deducting {ingredient.name}: {required_amount}{required_unit} → {required_in_base_unit}{ingredient_unit}")
-                        print(f"    Current stock: {ingredient.stock}{ingredient_unit}")
-                        
                         if ingredient.stock < required_in_base_unit:
-                            error_msg = f"Not enough {ingredient.name} in stock. Required: {required_in_base_unit}{ingredient_unit}, Available: {ingredient.stock}{ingredient_unit}"
-                            print(f"    ERROR: {error_msg}")
-                            raise ValueError(error_msg)
+                            raise ValueError(
+                                f"Not enough {ingredient.name} in stock. "
+                                f"Required: {required_in_base_unit}{ingredient_unit}, "
+                                f"Available: {ingredient.stock}{ingredient_unit}"
+                            )
                         
                         ingredient.stock = F('stock') - required_in_base_unit
                         ingredient.save()
-                        print(f"    Deducted successfully")
                         processed_ingredients.append(f"{ingredient.name} (-{required_in_base_unit}{ingredient_unit})")
                         
                     elif action == 'return':
@@ -256,11 +256,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             if new_status == "completed" and old_status != "completed":
                 stock_issues = []
                 
-                print(f"Checking stock for order {order.id}:")
                 for item in order.items.all():
                     if item.product.deductable:
                         available = item.product.get_available_stock()
-                        print(f"  Product: {item.product.name}, Available: {available}, Required: {item.quantity}")
                         if available < item.quantity:
                             stock_issues.append({
                                 'product': item.product.name,
@@ -292,9 +290,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             try:
                 # If new status is completed, deduct ingredients
                 if new_status == "completed" and old_status != "completed":
-                    print(f"Deducting ingredients for order {order.id}")
                     ingredient_changes = self.process_ingredients(order, "deduct")
-                    print(f"Successfully deducted: {ingredient_changes}")
                 
                 # If cancelling from non-processing states, return ingredients
                 if new_status == "cancelled" and old_status not in ["processing", "preparing", "completed"]:
@@ -325,7 +321,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 })
             except Exception as e:
                 # If any errors occur during stock processing, don't change the status
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+                logger.error(f"Order {order.id} status update failed: {e}")
+                return Response({'error': 'Failed to update order status. Please try again.'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'message': 'Status unchanged'}, status=status.HTTP_200_OK)
 

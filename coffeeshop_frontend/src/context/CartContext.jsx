@@ -81,7 +81,7 @@ export function CartProvider({ children }) {
       setIsCartOpen(false);
       return true;
     } catch (error) {
-      console.error('Error creating order:', error);
+      if (import.meta.env.DEV) console.error('Error creating order:', error);
       toast.error('Failed to create order');
       return false;
     }

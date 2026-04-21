@@ -26,7 +26,7 @@ export function SummaryCards() {
         const data = await dashboardApi.getStats();
         setStats(data);
       } catch (err) {
-        console.error('Error fetching dashboard stats:', err);
+        if (import.meta.env.DEV) console.error('Error fetching dashboard stats:', err);
       } finally {
         setLoading(false);
       }

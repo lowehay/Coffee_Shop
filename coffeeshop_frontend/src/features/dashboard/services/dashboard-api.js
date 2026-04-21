@@ -10,7 +10,7 @@ export const dashboardApi = {
       const response = await api.get('/api/dashboard/stats/');
       return response.data;
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      if (import.meta.env.DEV) console.error('Error fetching dashboard stats:', error);
       throw error;
     }
   },
@@ -25,7 +25,7 @@ export const dashboardApi = {
       const response = await api.get(`/api/dashboard/sales-chart/?type=${type}`);
       return response.data;
     } catch (error) {
-      console.error(`Error fetching ${type} sales chart data:`, error);
+      if (import.meta.env.DEV) console.error(`Error fetching ${type} sales chart data:`, error);
       throw error;
     }
   },
@@ -40,7 +40,7 @@ export const dashboardApi = {
       const response = await api.get(`/api/dashboard/recent-orders/?limit=${limit}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching recent orders:', error);
+      if (import.meta.env.DEV) console.error('Error fetching recent orders:', error);
       throw error;
     }
   },
@@ -56,7 +56,7 @@ export const dashboardApi = {
       const response = await api.get(`/api/dashboard/popular-products/?limit=${limit}&period=${period}`);
       return response.data;
     } catch (error) {
-      console.error('Error fetching popular products:', error);
+      if (import.meta.env.DEV) console.error('Error fetching popular products:', error);
       throw error;
     }
   },
@@ -70,7 +70,7 @@ export const dashboardApi = {
       const response = await api.get('/api/dashboard/order-status-chart/');
       return response.data;
     } catch (error) {
-      console.error('Error fetching order status chart data:', error);
+      if (import.meta.env.DEV) console.error('Error fetching order status chart data:', error);
       throw error;
     }
   },
@@ -88,7 +88,7 @@ export const dashboardApi = {
       const response = await api.get(url);
       return response.data;
     } catch (error) {
-      console.error('Error fetching inventory status data:', error);
+      if (import.meta.env.DEV) console.error('Error fetching inventory status data:', error);
       throw error;
     }
   }

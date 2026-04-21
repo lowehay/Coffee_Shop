@@ -2,6 +2,9 @@ from django.db import models
 from ingredient_inventory.models import Ingredient
 from decimal import Decimal
 import math
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Product(models.Model):
     name = models.CharField(max_length=100)
@@ -34,8 +37,7 @@ class Product(models.Model):
         if not product_ingredients.exists():
             return 0
         
-        # Debug: Print current ingredients
-        print(f"Calculating stock for {self.name}:")
+        logger.debug(f"Calculating stock for {self.name}:")
         
         # Check each ingredient
         for product_ingredient in product_ingredients:
@@ -45,12 +47,12 @@ class Product(models.Model):
             ingredient_unit = str(ingredient.unit).lower().strip()
             ingredient_stock = float(ingredient.stock)
             
-            print(f"  Ingredient: {ingredient.name}")
-            print(f"    Stock: {ingredient_stock} {ingredient_unit}")
-            print(f"    Required: {required_amount} {required_unit}")
+            logger.debug(f"  Ingredient: {ingredient.name}")
+            logger.debug(f"    Stock: {ingredient_stock} {ingredient_unit}")
+            logger.debug(f"    Required: {required_amount} {required_unit}")
             
             if required_amount <= 0:
-                print(f"    SKIP: Required amount is {required_amount}")
+                logger.debug(f"    SKIP: Required amount is {required_amount}")
                 continue
             
             # Unit conversion with special handling for coffee
@@ -84,22 +86,22 @@ class Product(models.Model):
             elif ingredient_unit in conversion_factors and required_unit in conversion_factors[ingredient_unit]:
                 conversion_factor = conversion_factors[ingredient_unit][required_unit]
                 converted_stock = ingredient_stock * conversion_factor
-                print(f"    Standard conversion: {ingredient_stock} {ingredient_unit} = {converted_stock} {required_unit}")
+                logger.debug(f"    Standard conversion: {ingredient_stock} {ingredient_unit} = {converted_stock} {required_unit}")
                 conversion_found = True
             elif (ingredient_unit, required_unit) in [('kg', 'ml'), ('g', 'ml')]:
                 # Special coffee beans conversion: mass to volume
                 if ingredient_unit == 'kg' and required_unit == 'ml':
                     converted_stock = ingredient_stock * 2500  # 1kg ≈ 2500ml coffee beans
-                    print(f"    Coffee conversion: {ingredient_stock}kg = {converted_stock}ml")
+                    logger.debug(f"    Coffee conversion: {ingredient_stock}kg = {converted_stock}ml")
                     conversion_found = True
                 elif ingredient_unit == 'g' and required_unit == 'ml':
                     converted_stock = ingredient_stock * 2.5  # 1g ≈ 2.5ml coffee beans
-                    print(f"    Coffee conversion: {ingredient_stock}g = {converted_stock}ml")
+                    logger.debug(f"    Coffee conversion: {ingredient_stock}g = {converted_stock}ml")
                     conversion_found = True
             
             if not conversion_found:
-                print(f"    WARNING: No conversion available: {ingredient_unit} to {required_unit}")
-                print(f"    Assuming 1:1 ratio for calculation")
+                logger.warning(f"    No conversion available: {ingredient_unit} to {required_unit}")
+                logger.debug(f"    Assuming 1:1 ratio for calculation")
                 # Use 1:1 ratio as fallback instead of skipping
                 converted_stock = ingredient_stock
             
@@ -107,12 +109,12 @@ class Product(models.Model):
             possible_units = converted_stock / required_amount
             possible_units = max(0, int(possible_units))
             
-            print(f"    Can make: {possible_units} units")
+            logger.debug(f"    Can make: {possible_units} units")
             
             available_units = min(available_units, possible_units)
         
         result = max(0, int(available_units))
-        print(f"  FINAL: {result} units available")
+        logger.debug(f"  FINAL: {result} units available")
         return result
     
     @property

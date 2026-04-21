@@ -29,7 +29,7 @@ export function InventoryStatus() {
         setInventoryItems(data);
         setError(null);
       } catch (err) {
-        console.error('Failed to fetch inventory data:', err);
+        if (import.meta.env.DEV) console.error('Failed to fetch inventory data:', err);
         setError('Failed to load inventory data. Please try again later.');
         toast.error("Could not load inventory data. Please try again.");
       } finally {

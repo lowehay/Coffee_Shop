@@ -92,7 +92,7 @@ export function OrderDetailsModal({ isOpen, onClose, order, onStatusChange }) {
       const response = await apiCallWithTokenRefresh(`/api/orders/order-items/?order_id=${orderId}`);
       setOrderItems(response.data);
     } catch (error) {
-      console.error("Error fetching order items:", error);
+      if (import.meta.env.DEV) console.error("Error fetching order items:", error);
       toast.error("Failed to load order items");
     } finally {
       setIsLoadingItems(false);
@@ -106,7 +106,7 @@ export function OrderDetailsModal({ isOpen, onClose, order, onStatusChange }) {
       const response = await apiCallWithTokenRefresh('/api/products/products/', 'get');
       setProducts(response.data);
     } catch (error) {
-      console.error("Error fetching products:", error);
+      if (import.meta.env.DEV) console.error("Error fetching products:", error);
       toast.error("Could not load products");
     } finally {
       setIsLoadingProducts(false);
@@ -143,7 +143,7 @@ export function OrderDetailsModal({ isOpen, onClose, order, onStatusChange }) {
       }
       
     } catch (error) {
-      console.error("Error adding item:", error);
+      if (import.meta.env.DEV) console.error("Error adding item:", error);
       toast.error(error.response?.data?.error || 'Failed to add item');
     } finally {
       setIsUpdating(false);
@@ -178,7 +178,7 @@ export function OrderDetailsModal({ isOpen, onClose, order, onStatusChange }) {
       }
       
     } catch (error) {
-      console.error("Error updating item:", error);
+      if (import.meta.env.DEV) console.error("Error updating item:", error);
       toast.error(error.response?.data?.error || 'Failed to update item');
     } finally {
       setIsUpdating(false);
@@ -208,7 +208,7 @@ export function OrderDetailsModal({ isOpen, onClose, order, onStatusChange }) {
       }
       
     } catch (error) {
-      console.error("Error removing item:", error);
+      if (import.meta.env.DEV) console.error("Error removing item:", error);
       toast.error(error.response?.data?.error || 'Failed to remove item');
     } finally {
       setIsUpdating(false);
@@ -283,11 +283,11 @@ export function OrderDetailsModal({ isOpen, onClose, order, onStatusChange }) {
         `/api/orders/orders/${orderId}/`,
         "get"
       );
-      console.log('Updated order data:', response.data);
-      console.log('Updated total:', response.data.total_price);
+      if (import.meta.env.DEV) console.log('Updated order data:', response.data);
+      if (import.meta.env.DEV) console.log('Updated total:', response.data.total_price);
       return response.data;
     } catch (error) {
-      console.error("Error fetching updated order:", error);
+      if (import.meta.env.DEV) console.error("Error fetching updated order:", error);
       return null;
     }
   }, [apiCallWithTokenRefresh, fetchOrderItems]);
@@ -335,7 +335,7 @@ export function OrderDetailsModal({ isOpen, onClose, order, onStatusChange }) {
     
     try {
       setIsUpdating(true);
-      console.log(`Updating order ${order.id} status to ${newStatus}`);
+      if (import.meta.env.DEV) console.log(`Updating order ${order.id} status to ${newStatus}`);
       // Fix: apiCallWithTokenRefresh expects (url, method, data) as separate parameters
       const response = await apiCallWithTokenRefresh(
         `/api/orders/orders/${order.id}/update_status/`, 
@@ -352,7 +352,7 @@ export function OrderDetailsModal({ isOpen, onClose, order, onStatusChange }) {
         onStatusChange(order.id, updatedOrder);
       }
     } catch (error) {
-      console.error("Error updating order status:", error);
+      if (import.meta.env.DEV) console.error("Error updating order status:", error);
       toast.error("Failed to update order status");
     } finally {
       setIsUpdating(false);
